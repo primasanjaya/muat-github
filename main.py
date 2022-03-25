@@ -199,6 +199,7 @@ def execute_annotation(args,only_input_filename):
     ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.genic.genomic.bed.gz \
     '+ args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
     genic'
+
     subprocess.run(syntax_genic, shell=True)
     os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
@@ -219,6 +220,7 @@ def execute_annotation(args,only_input_filename):
     --annotation ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz \
     --ref ' + args.reference
     subprocess.run(syntax_geneorientation, shell=True)
+
     os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
 
 
