@@ -14,13 +14,15 @@ class ModelConfig:
     resid_pdrop = 0.1
     attn_pdrop = 0.1
 
-    def __init__(self, vocab_size, block_size, num_class,position_size = 1, ges_size=1,args=None, **kwargs):
+    def __init__(self,vocab_size, block_size, num_class,position_size = 1, ges_size=1,dnn_input=1,epi_size=1,args=None, **kwargs):
         self.vocab_size = vocab_size
         self.block_size = block_size
         self.num_class = num_class
         self.position_size = position_size
         self.ges_size = ges_size
         self.args = args
+        self.dnn_input=dnn_input
+        self.epi_size=epi_size
 
         for k,v in kwargs.items():
             setattr(self, k, v)
@@ -44,6 +46,45 @@ class Block(nn.Module):
         x = x + self.attn(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
+
+class DNN_GX(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.dnn = nn.Sequential(nn.Linear(config.dnn_input, 10000),
+                                   nn.ReLU(),
+                                   nn.Linear(10000, 2500),
+                                   nn.ReLU(),
+                                   nn.Linear(2500, 500),
+                                   nn.ReLU(),
+                                   nn.Linear(500,24),
+                                   nn.ReLU(),
+                                   )
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+    def forward(self, x,targets=None,vis=None):
+
+        x = x[0]
+        x = x[0]
+
+
+        features = self.dnn(x)
+
+        if vis:
+            return features
+
+        logits = self.toprobs(features)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
 
 
 class EmbFC(nn.Module):
@@ -300,6 +341,400 @@ class MuAtMotif(nn.Module):
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         return logits, loss
 
+class MuAtEpiF(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.num_tokens, self.max_pool = config.vocab_size, False
+
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
+
+        self.epiblocks = nn.Embedding(config.epi_size, config.epi_emb,padding_idx=0)
+        self.epi_emb = config.epi_emb
+
+        tblocks = []
+        for i in range(config.n_layer):
+            tblocks.append(
+                TransformerBlock(emb= int(config.epi_emb * 145), heads=config.n_head, seq_length=config.block_size, mask=False, dropout=config.attn_pdrop))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.tofeature = nn.Sequential(nn.Linear(int(config.epi_emb * 145), 24),
+                                        nn.ReLU())
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+        self.do = nn.Dropout(config.embd_pdrop)
+
+    def forward(self, x,targets=None,vis=None):
+
+        x = x[0]
+
+        batch = x.shape[0]
+
+        all_emb = torch.zeros(batch,x.shape[1], self.epi_emb*x.shape[2]).to(self.device)
+        start = 0
+        end = self.epi_emb
+        for i in range(x.shape[2]):
+            oneinput = x[:,:,i]
+            oneres = self.epiblocks.to(self.device)(oneinput)
+            all_emb[:,:,start:end] = oneres
+            start = start + self.epi_emb
+            end = end + self.epi_emb
+
+        x = self.tblocks(all_emb)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        feature = self.tofeature(x)
+
+        if vis:
+            return feature
+        else:
+            logits = self.toprobs(feature)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
+
+class MuAtMotifPositionGESEpiF(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
+
+        self.num_tokens, self.max_pool = config.vocab_size, False
+
+        self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd,padding_idx=0)
+        self.position_embedding = nn.Embedding(config.position_size, config.n_embd,padding_idx=0)
+        self.ges_embedding = nn.Embedding(config.ges_size+1, 4,padding_idx=0)
+
+
+        self.epiblocks = []
+        for i in range(145):
+            self.epiblocks.append(nn.Embedding(19, 2,padding_idx=0))
+
+        tblocks = []
+        for i in range(config.n_layer):
+            tblocks.append(
+                TransformerBlock(emb=int(config.n_embd + config.n_embd + 4 + (2 * 145)), heads=config.n_head, seq_length=config.block_size, mask=False, dropout=config.attn_pdrop))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.tofeature = nn.Sequential(nn.Linear(int(config.n_embd + config.n_embd + 4 + (2 * 145)), 24),
+                                        nn.ReLU())
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+        self.do = nn.Dropout(config.embd_pdrop)
+
+    def forward(self, x,targets=None,vis=None):
+
+        triplettoken = x[0]
+        postoken = x[1]
+        gestoken = x[2]
+
+        epitoken = x[3]
+
+        batch = triplettoken.shape[0]
+
+        all_emb = torch.zeros(batch,epitoken.shape[1], 2*epitoken.shape[2]).to(self.device)
+        
+        start = 0
+        end = 2
+        for i in range(epitoken.shape[2]):
+            oneinput = epitoken[:,:,i]
+            oneres = self.epiblocks[i].to(self.device)(oneinput)
+            all_emb[:,:,start:end] = oneres
+            start = start + 2
+            end = end + 2
+    
+        tokens = self.token_embedding(triplettoken)
+        positions = self.position_embedding(postoken)
+        ges = self.ges_embedding(gestoken)
+
+        x = torch.cat((tokens,positions,ges,all_emb),axis=2)
+
+        x = self.do(x)
+        #pdb.set_trace()
+        
+        x = self.tblocks(x)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        feature = self.tofeature(x)
+
+        if vis:
+            return feature
+        else:
+            logits = self.toprobs(feature)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
+
+class MuAtMotifPositionGESEpiF_OneEpiEmb(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
+
+        self.num_tokens, self.max_pool = config.vocab_size, False
+
+        self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd,padding_idx=0)
+        self.position_embedding = nn.Embedding(config.position_size, config.n_embd,padding_idx=0)
+        self.ges_embedding = nn.Embedding(config.ges_size+1, 4,padding_idx=0)
+        #pdb.set_trace()
+        self.epiblocks = nn.Embedding(config.epi_size, config.epi_emb,padding_idx=0)
+
+        self.epi_emb = config.epi_emb
+        
+        tblocks = []
+        for i in range(config.n_layer):
+            tblocks.append(
+                TransformerBlock(emb=int(config.n_embd + config.n_embd + 4 + (config.epi_emb * 145)), heads=config.n_head, seq_length=config.block_size, mask=False, dropout=config.attn_pdrop))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.tofeature = nn.Sequential(nn.Linear(int(config.n_embd + config.n_embd + 4 + (config.epi_emb * 145)), 24),
+                                        nn.ReLU())
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+        self.do = nn.Dropout(config.embd_pdrop)
+
+    def forward(self, x,targets=None,vis=None):
+
+        triplettoken = x[0]
+        postoken = x[1]
+        gestoken = x[2]
+
+        epitoken = x[3]
+
+        batch = triplettoken.shape[0]
+
+        all_emb = torch.zeros(batch,epitoken.shape[1], self.epi_emb*epitoken.shape[2]).to(self.device)
+        
+        start = 0
+        end = self.epi_emb
+        for i in range(epitoken.shape[2]):
+            oneinput = epitoken[:,:,i]
+            oneres = self.epiblocks.to(self.device)(oneinput)
+            all_emb[:,:,start:end] = oneres
+            start = start + self.epi_emb
+            end = end + self.epi_emb
+    
+        tokens = self.token_embedding(triplettoken)
+        positions = self.position_embedding(postoken)
+        ges = self.ges_embedding(gestoken)
+
+        x = torch.cat((tokens,positions,ges,all_emb),axis=2)
+
+        x = self.do(x)
+        #pdb.set_trace()
+        
+        x = self.tblocks(x)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        feature = self.tofeature(x)
+
+        if vis:
+            return feature
+        else:
+            logits = self.toprobs(feature)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
+
+
+class MuAtMotifPositionGESEpiF_EpiCompress(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
+
+        self.num_tokens, self.max_pool = config.vocab_size, False
+
+        self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd,padding_idx=0)
+        self.position_embedding = nn.Embedding(config.position_size, config.n_embd,padding_idx=0)
+        self.ges_embedding = nn.Embedding(config.ges_size+1, 4,padding_idx=0)
+        #pdb.set_trace()
+        self.epiblocks = nn.Embedding(config.epi_size, config.epi_emb,padding_idx=0)
+        self.epi_emb=config.epi_emb
+
+        self.epi_enc = nn.Linear((config.epi_emb * 145), config.n_embd)
+        
+        tblocks = []
+        for i in range(config.n_layer):
+            tblocks.append(
+                TransformerBlock(emb=int(config.n_embd + config.n_embd + 4 + (config.n_embd)), heads=config.n_head, seq_length=config.block_size, mask=False, dropout=config.attn_pdrop))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.tofeature = nn.Sequential(nn.Linear(int(config.n_embd + config.n_embd + 4 + (config.n_embd)), 24),
+                                        nn.ReLU())
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+        self.do = nn.Dropout(config.embd_pdrop)
+
+    def forward(self, x,targets=None,vis=None):
+
+        triplettoken = x[0]
+        postoken = x[1]
+        gestoken = x[2]
+
+        epitoken = x[3]
+
+        batch = triplettoken.shape[0]
+
+        all_emb = torch.zeros(batch,epitoken.shape[1], self.epi_emb*epitoken.shape[2]).to(self.device)
+        
+        start = 0
+        end = self.epi_emb
+        for i in range(epitoken.shape[2]):
+            oneinput = epitoken[:,:,i]
+            oneres = self.epiblocks.to(self.device)(oneinput)
+            all_emb[:,:,start:end] = oneres
+            start = start + self.epi_emb
+            end = end + self.epi_emb
+    
+        tokens = self.token_embedding(triplettoken)
+        positions = self.position_embedding(postoken)
+        ges = self.ges_embedding(gestoken)
+
+        epi = self.epi_enc(all_emb)
+
+        x = torch.cat((tokens,positions,ges,epi),axis=2)
+
+        x = self.do(x)
+        #pdb.set_trace()
+        
+        x = self.tblocks(x)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        feature = self.tofeature(x)
+
+        if vis:
+            return feature
+        else:
+            logits = self.toprobs(feature)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
+
+class MuAtEpiF_EpiCompress(nn.Module):
+    """
+    Transformer for classifying sequences
+    """
+    def __init__(self, config):
+        super().__init__()
+
+        self.device = 'cpu'
+        if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
+
+        self.num_tokens, self.max_pool = config.vocab_size, False
+
+        self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd,padding_idx=0)
+
+        self.epiblocks = nn.Embedding(config.epi_size, config.epi_emb,padding_idx=0)
+        self.epi_emb=config.epi_emb
+
+        self.epi_enc = nn.Linear((config.epi_emb * 145), config.n_embd)
+        
+        tblocks = []
+        for i in range(config.n_layer):
+            tblocks.append(
+                TransformerBlock(emb=int(config.n_embd), heads=config.n_head, seq_length=config.block_size, mask=False, dropout=config.attn_pdrop))
+
+        self.tblocks = nn.Sequential(*tblocks)
+
+        self.tofeature = nn.Sequential(nn.Linear(int(config.n_embd), 24),
+                                        nn.ReLU())
+
+        self.toprobs = nn.Linear(24, config.num_class)
+
+        self.do = nn.Dropout(config.embd_pdrop)
+
+    def forward(self, x,targets=None,vis=None):
+        
+        epitoken = x[0]
+
+        batch = epitoken.shape[0]
+
+        all_emb = torch.zeros(batch,epitoken.shape[1], self.epi_emb*epitoken.shape[2]).to(self.device)
+        
+        start = 0
+        end = self.epi_emb
+        for i in range(epitoken.shape[2]):
+            oneinput = epitoken[:,:,i]
+            oneres = self.epiblocks.to(self.device)(oneinput)
+            all_emb[:,:,start:end] = oneres
+            start = start + self.epi_emb
+            end = end + self.epi_emb
+
+        epi = self.epi_enc(all_emb)
+
+        x = epi
+
+        x = self.do(x)
+        #pdb.set_trace()
+        
+        x = self.tblocks(x)
+
+        x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
+
+        feature = self.tofeature(x)
+
+        if vis:
+            return feature
+        else:
+            logits = self.toprobs(feature)
+
+        # if we are given some desired targets also calculate the loss
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+        return logits, loss
+
 
 class MuAtMotifF(nn.Module):
     """
@@ -337,9 +772,6 @@ class MuAtMotifF(nn.Module):
         x = self.do(tokens)
 
         x = self.tblocks(x)
-
-        if vis:
-            return x
 
         x = x.max(dim=1)[0] if self.max_pool else x.mean(dim=1) # pool over the time dimension
 

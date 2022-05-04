@@ -30,20 +30,12 @@ output_dir = '../dataset_utils/'
 # In[ ]:
 
 
-
-
-
-# In[63]:
-
-
 #scan all samples per tumour types
 
 tumour_types = os.listdir(pcawg_dir)
 tumour_types = [i for i in tumour_types if len(i.split('.'))==1]
 tumour_types.sort()
 
-
-# In[64]:
 
 
 #scan all samples
@@ -57,82 +49,4 @@ for i in range(len(tumour_types)):
 pd_allsamples = pd.DataFrame(pd_allsamples)
 pd_allsamples.columns = ['class_name','class_index','n_samples']
 pd_allsamples.to_csv(output_dir + 'classinfo_pcawg.csv')
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
 

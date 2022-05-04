@@ -33,196 +33,13 @@ from preprocessing.dmm.dmm import *
 from preprocessing.fromvcffiles import *
 from preprocessing.dmm.preprocess3 import *
 
+from models.utils import *
+
 import argparse
 import os
 import pandas as pd
 
 import subprocess
-
-def ensure_path(path, terminator="/"):
-    if path == None:
-        return path
-
-    path = path.replace('\\', terminator)
-    if path.endswith(terminator):
-        return path
-    else:
-        path = path + terminator
-    return path
-
-def ensure_filepath(path, terminator="/"):
-    if path == None:
-        return path
-
-    path = path.replace('\\', terminator)
-    if path.endswith(terminator):
-        return path
-    else:
-        path = path
-    return path
-
-def fix_path(args):
-    args.input_data_dir = ensure_path(args.input_data_dir)
-    args.output_data_dir = ensure_path(args.output_data_dir)
-
-    args.save_ckpt_dir = ensure_path(args.save_ckpt_dir)
-    args.load_ckpt_dir = ensure_path(args.load_ckpt_dir)
-
-    args.tmp_dir = ensure_path(args.tmp_dir)
-
-    args.output_pred_dir = ensure_path(args.output_pred_dir)
-
-    return args
-
-
-def ensure_terminator(path, terminator="/"):
-    if path == None:
-        return path
-    if path.endswith(terminator):
-        return path
-    return path + terminator
-
-def translate_args(args):
-
-    cwd = os.getcwd()
-    args.cwd = cwd
-    args.mutation_coding = cwd + '/extfile/mutation_codes_sv.tsv'
-    args.input = args.input_data_dir + args.input_filename
-
-    filename = strip_suffixes(args.input_filename, ['.vcf'])
-
-    args.output = args.tmp_dir + filename + '.tsv.gz'
-
-    args.reference = ensure_filepath(args.reference)
-    args.context = 8
-    args.sample_id = 'submitted_sample_id'
-
-    args.verbose = 1
-    args.generate_negatives = 1
-    args.report_interval = 100000
-    args.tmp = args.tmp_dir
-
-    args.genomic_tracks = args.cwd + '/preprocessing/genomic_tracks/h37/'
-
-    return args
-
-def simplified_args(args):
-
-    if args.motif:
-        args.arch = 'MuAtMotifF'
-    if args.motif_pos:
-        args.arch = 'MuAtMotifPositionF'
-    if args.motif_pos_ges:
-        args.arch = 'MuAtMotifPositionGESF'
-    if args.mut_type == 'SNV':
-        args.mutratio = '1-0-0-0-0'
-    elif args.mut_type == 'SNV+MNV':
-        args.mutratio = '0.5-0.5-0-0-0'
-    elif args.mut_type == 'SNV+MNV+indel':
-        args.mutratio = '0.4-0.3-0.3-0-0'
-    elif args.mut_type == 'SNV+MNV+indel+SV/MEI':
-        args.mutratio = '0.3-0.3-0.2-0.2-0'
-    elif args.mut_type == 'SNV+MNV+indel+SV/MEI+Neg':
-        args.mutratio = '0.25-0.25-0.25-0.15-0.1'
-    else:
-        print('None of the option : SNV+MNV+indel+SV/MEI+Neg')
-
-    return args
-
-def solving_arch(args):
-    if args.arch == 'MuAtPlainF':
-        args.arch = 'MuAtPlain'
-    if args.arch == 'TripletPositionF':
-        args.arch = 'TripletPosition'
-    if args.arch == 'TripletPositionGESF':
-        args.arch = 'TripletPositionGES'
-    return args
-
-def update_args(args,old_args):
-
-    if old_args.arch == 'CTransformer':
-        rename_arch = 'MuAtMotif'
-    elif old_args.arch == 'CTransformerF':
-        rename_arch = 'MuAtMotifF'
-    elif old_args.arch == 'TripletPosition':
-        rename_arch = 'MuAtMotifPosition'
-    elif old_args.arch == 'TripletPositionF':
-        rename_arch = 'MuAtMotifPositionF'
-    elif old_args.arch == 'TripletPositionGES':
-        rename_arch = 'MuAtMotifPositionGES'
-    elif old_args.arch == 'TripletPositionGESF':
-        rename_arch = 'MuAtMotifPositionGESF'
-    else:
-        rename_arch = old_args.arch
-
-    #check if mut type is same or not
-
-    if args.mut_type == old_args.mut_type:
-        args.mut_type = args.mut_type
-    else:
-        print('Warning: ckpt data type is ' + old_args.mut_type + ', different from input data type : ' + args.mut_type)
-        print(old_args.mut_type + ' is selected')
-        args.mut_type = old_args.mut_type
-
-    args.arch = rename_arch
-    args.block_size = old_args.block_size
-    args.dataloader = old_args.dataloader
-    args.fold = old_args.fold
-    
-    args.motif = old_args.motif
-    args.motif_pos = old_args.motif_pos
-    args.motif_pos_ges = old_args.motif_pos_ges
-    args.mutratio = old_args.mutratio
-    args.n_class =  old_args.n_class
-    args.n_emb = old_args.n_emb
-    args.n_head = old_args.n_head
-    args.n_layer =  old_args.n_layer
-
-    return args
-
-def execute_annotation(args,only_input_filename):
-
-    #gc content
-    syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
-    -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
-    -o ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
-    -n 1001 \
-    -l gc1kb \
-    --reference ' + args.reference + ' \
-    --verbose'
-    subprocess.run(syntax_gc, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
-
-    # Genic regions
-    syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
-    ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
-    ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.genic.genomic.bed.gz \
-    '+ args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
-    genic'
-
-    subprocess.run(syntax_genic, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
-
-    #exon regions
-    syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
-    ' + args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
-    ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.exons.genomic.bed.gz \
-    ' + args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz \
-    exonic'
-    subprocess.run(syntax_exonic, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
-
-    # Annotate dataset with gene orientation information
-
-    syntax_geneorientation = 'python3 preprocessing/dmm/annotate_mutations_with_coding_strand.py \
-    -i '+ args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz \
-    -o '+ args.tmp_dir + only_input_filename + '.gc.genic.exonic.cs.tsv.gz \
-    --annotation ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz \
-    --ref ' + args.reference
-    subprocess.run(syntax_geneorientation, shell=True)
-
-    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
-
 
 def get_args():
         parser = argparse.ArgumentParser(description='PCAWG / TCGA experiment')
@@ -242,27 +59,43 @@ def get_args():
                         help='output data directory')
         parser.add_argument('--input-newdata-dir', type=str, default=None,
                         help='input new data directory')
+        parser.add_argument('--gx-dir', type=str, default=None,
+                        help='input gene expression data')
 
             #OUTPUT DATA
-        parser.add_argument('--output-data-dir', type=str, default=None,
+        parser.add_argument('--output-train-dir', type=str, default=None,
                         help='output data directory')
         parser.add_argument('--output-crossdata-dir', type=str, default=None,
-                        help='output data directory')
+                        help='output cross data directory')
         parser.add_argument('--output-newdata-dir', type=str, default=None,
-                        help='output data directory')
+                        help='output new data directory')
         parser.add_argument('--tmp-dir', type=str, default=None,
                         help='temporary data directory')
         parser.add_argument('--output-prefix', type=str, default=None,
                         help='prefix of output data')
         parser.add_argument('--output-pred-dir', type=str, default=None,
                         help='output of prediction directory')
-
+        parser.add_argument('--output-pred-file', type=str, default=None,
+                        help='output prediction file')
+        parser.add_argument('--output-pred-filename', type=str, default=None,
+                        help='output prediction filename')
 
             # FILENAMES
         parser.add_argument('--input-filename', type=str, default=None,
                         help='input filename')
+        parser.add_argument('--input-file', type=str, default=None,
+                        help='input file')
         parser.add_argument('--output-filename', type=str, default=None,
                         help='output filename')
+        parser.add_argument('--output-file', type=str, default=None,
+                        help='output file')
+        parser.add_argument('--trainsplit-file', type=str, default=None,
+                        help='train and validation file split')
+        parser.add_argument('--valsplit-file', type=str, default=None,
+                        help='train and validation file split')
+        parser.add_argument('--classinfo-file', type=str, default=None,
+                        help='class info file')
+
             #CKPT SAVE
         parser.add_argument('--save-ckpt-dir', type=str, default=None,
                         help='save checkpoint dir')
@@ -273,7 +106,13 @@ def get_args():
                         help='load checkpoint dir')
         parser.add_argument('--load-ckpt-filename', type=str, default=None,
                         help='load checkpoint filename')
+        parser.add_argument('--load-ckpt-file', type=str, default=None,
+                        help='load checkpoint complete path file')
         # HYPER PARAMS 
+        parser.add_argument('--epoch', type=int, default=1,
+                        help='number of epoch')
+        parser.add_argument('--l-rate', type=float, default=6e-4,
+                        help='learning rate')
         parser.add_argument('--n-class', type=int, default=None,
                         help='number of class')
         parser.add_argument('--batch-size', type=int, default=1,
@@ -292,11 +131,17 @@ def get_args():
                         help='tensorboardX tag')
         parser.add_argument('--fold', type=int, default=1, 
                             help='fold')
+        parser.add_argument('--epi-emb', type=int, default=2, 
+                            help='epigenetic embedding')
+
 
         #EXECUTION
         
         parser.add_argument('--train', action='store_true', default=False,
                             help='execute training')
+        parser.add_argument('--generative', action='store_true', default=False,
+                            help='execute generative training (dimensional reduction)')
+        
         parser.add_argument('--predict', action='store_true', default=False,
                             help='execute prediction')
 
@@ -306,9 +151,16 @@ def get_args():
         parser.add_argument('--single-pred-vcf', action='store_true', default=False)
         parser.add_argument('--multi-pred-vcf', action='store_true', default=False)
 
+        parser.add_argument('--get-motif', action='store_true', default=False)
+        parser.add_argument('--get-position', action='store_true', default=False)
+        parser.add_argument('--get-ges', action='store_true', default=False)
+        parser.add_argument('--get-epi', action='store_true', default=False)
+
         parser.add_argument('--motif', action='store_true', default=False)
         parser.add_argument('--motif-pos', action='store_true', default=False)
         parser.add_argument('--motif-pos-ges', action='store_true', default=False)
+        parser.add_argument('--motif-pos-ges-epi', action='store_true', default=False)
+
 
         parser.add_argument('--get-features', action='store_true', default=False)
 
@@ -320,7 +172,7 @@ def get_args():
         parser.add_argument('--mut-type', type=str, default='',
                         help='mutation type, only [SNV,SNV+MNV,SNV+MNV+indel,SNV+MNV+indel+SV/MEI,SNV+MNV+indel+SV/MEI+Neg] can be applied')
     
-        parser.add_argument('--mutratio', type=str, default='',
+        parser.add_argument('--mutratio', type=str, default=None,
                         help='mutation ratio per mutation type, sum of them must be one')
         parser.add_argument('--vis-attention', type=str, default='',
                         help='visualize attention values')
@@ -367,84 +219,48 @@ def get_args():
         args = parser.parse_args()
         return args
 
-def get_simplified_dataloader(args,train_val,input_filename):
-    if args.dataloader == 'pcawg' or args.dataset == 'wgspcawg':
-        if args.multi_pred_vcf:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.tmp_dir,
-                                    mode='testing', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size, 
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,
-                                    input_filename = input_filename,
-                                    args = args
-                                    )
+def execute_annotation(args,only_input_filename):
+    #gc content
+    syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
+    -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
+    -o ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
+    -n 1001 \
+    -l gc1kb \
+    --reference ' + args.reference + ' \
+    --verbose'
+    subprocess.run(syntax_gc, shell=True)
+    os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
 
-        if args.single_pred_vcf:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.tmp_dir,
-                                    mode='testing', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size, 
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,
-                                    input_filename = input_filename,
-                                    args = args
-                                    )
+    # Genic regions
+    syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
+    ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
+    ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.genic.genomic.bed.gz \
+    '+ args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
+    genic'
+    subprocess.run(syntax_genic, shell=True)
+    os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
-        if args.train:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.input_data_dir, 
-                                    mode='training', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size,
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,args = args)
-        if args.predict:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.input_data_dir, 
-                                    mode='validation', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size,
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,args = args)
+    #exon regions
+    syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
+    ' + args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
+    ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.exons.genomic.bed.gz \
+    ' + args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz \
+    exonic'
+    subprocess.run(syntax_exonic, shell=True)
+    #pdb.set_trace()
+    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
 
-    return dataloader_class
+    # Annotate dataset with gene orientation information
 
-def get_model(args,mconf):
-        if args.arch == 'MuAtMotif':
-            model = MuAtMotif(mconf)
-        elif args.arch == 'EmbFC':
-            model = EmbFC(mconf)    
-        elif args.arch == 'MuAtMotifPosition':
-            model = MuAtMotifPosition(mconf)    
-        elif args.arch == 'MuAtMotifPositionGES':
-            model = MuAtMotifPositionGES(mconf)
-        elif args.arch == 'MuAtMotifPositionGESRT':
-            model = MuAtMotifPositionGESRT (mconf)   
-        elif args.arch == 'MuAtMotifPositionF':
-            model = MuAtMotifPositionF(mconf)    
-        elif args.arch == 'MuAtMotifPositionGESF':
-            model = MuAtMotifPositionGESF(mconf)
-        elif args.arch == 'MuAtMotifF':
-            model = MuAtPlainF(mconf)
-        elif args.arch == 'EmbFCPos':
-            model = EmbFCPos(mconf)
-        elif args.arch == 'EmbFCPosGES':
-            model = EmbFCPosGES(mconf)
-        return model
+    syntax_geneorientation = 'python3 preprocessing/dmm/annotate_mutations_with_coding_strand.py \
+    -i '+ args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz \
+    -o '+ args.tmp_dir + only_input_filename + '.gc.genic.exonic.cs.tsv.gz \
+    --annotation ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz \
+    --ref ' + args.reference
+    subprocess.run(syntax_geneorientation, shell=True)
+    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
 
 if __name__ == '__main__':
-
         best_accuracy=0
 
         args = get_args()
@@ -454,27 +270,21 @@ if __name__ == '__main__':
         args = simplified_args(args)
 
         if args.train:
-            train_dataset = get_simplified_dataloader(args=args,train_val='training')
-            validation_dataset = get_simplified_dataloader(args=args,train_val='validation')
+            train_dataset = get_simplified_dataloader(args=args,train_val='training',input_filename=None)
+            validation_dataset = get_simplified_dataloader(args=args,train_val='validation',input_filename=None)
 
             mconf = ModelConfig(vocab_size=train_dataset.vocab_size, block_size=args.block_size,num_class=args.n_class,
-                    n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb)
-
-            if args.motif_pos:
-                mconf = ModelConfig(vocab_size=train_dataset.vocab_size, block_size=args.block_size,num_class=args.n_class,
-                    n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb,position_size=train_dataset.position_size)
-
-            if args.motif_pos_ges:
-                mconf = ModelConfig(vocab_size=train_dataset.vocab_size, block_size=args.block_size,num_class=args.n_class,
-                    n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb,position_size=train_dataset.position_size, ges_size =  train_dataset.ges_size)
+                    n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb,position_size=train_dataset.position_size, ges_size =  train_dataset.ges_size,dnn_input=train_dataset.dnn_input, epi_size=train_dataset.epi_size, epi_emb = args.epi_emb)
 
             model = get_model(args,mconf)
 
-            tconf = TrainerConfig(max_epochs=150, batch_size=1, learning_rate=6e-4,
+            tconf = TrainerConfig(max_epochs=args.epoch, batch_size=args.batch_size, learning_rate=args.l_rate,
                     lr_decay=True, num_workers=1, args=args)
             trainer = Trainer(model, train_dataset, validation_dataset, tconf)
 
-            trainer.dynamic_stream()
+            #trainer.dynamic_stream()
+            trainer.batch_train()
+
 
         if args.predict:
 
@@ -537,6 +347,7 @@ if __name__ == '__main__':
 
             args = translate_args(args)
             cmd_preprocess(args)
+
             only_input_filename = args.input_filename[:-4]
             execute_annotation(args,only_input_filename)
             preprocessing_fromdmm(args)

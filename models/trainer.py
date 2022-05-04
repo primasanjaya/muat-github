@@ -28,6 +28,7 @@ from torch.nn import functional as F
 from collections import Counter 
 from torch.autograd import Variable
 from tempfile import TemporaryFile
+import shutil
 
 class TrainerConfig:
     # optimization parameters
@@ -67,60 +68,86 @@ class Trainer:
         # take over whatever gpus are on the system
         self.device = 'cpu'
         if torch.cuda.is_available():
-            self.device = torch.cuda.current_device()      
+            self.device = torch.cuda.current_device()
 
+        string_log = f"{self.config.args.tag}_{self.config.args.arch}_fo{self.config.args.fold:.0f}_bs{self.config.args.block_size:.0f}_nl{self.config.args.n_layer:.0f}_nh{self.config.args.n_head:.0f}_ne{self.config.args.n_emb:.0f}_ba{self.config.args.batch_size:.0f}_ee{self.config.args.epi_emb:.0f}/"
+        self.complete_save_dir = self.config.args.save_ckpt_dir + string_log
+
+        os.makedirs(self.complete_save_dir, exist_ok=True)
+      
     def vis_plot(self,epoch):
-        y_true = np.asarray(self.all_target)
-        y_pred = np.asarray(self.all_predicted)
-        
-        acc = accuracy_score(y_true,y_pred)
 
-        try:
-            if self.config.args.balance:
-                label = sorted(set(self.train_dataset.pd_class_info.class_name))
-            else:
-                if self.config.args.dataset == 'finalpcawg' or self.config.args.dataset == 'wgspcawg':
-                    label = sorted(set(self.train_dataset.pd_class_info.class_name))
-                elif self.config.args.dataset == 'finaltcga' or self.config.args.dataset == 'westcga':
-                    label = sorted(set(self.train_dataset.pd_class_info.class_name))
-        except:
-            if self.train_dataset is None:
-                label = sorted(set(self.test_dataset[0].pd_class_info.class_name))
-            else:
-                label = sorted(set(self.train_dataset.pd_class_info.class_name))
+        pd_logits = pd.read_csv(self.complete_save_dir + 'best_vallogits.tsv',sep='\t')
 
-        #pdb.set_trace()
+        y_true = pd_logits['target_name']
+        y_score = pd_logits.iloc[:,0:-3]
+
+        top5all = []
+        for i in range(len(y_score)):
+            row = y_score.iloc[i]
+            row = row.sort_values(ascending=False)
+            best5 = row[0:5].index.tolist()
+            best5 = tuple(best5)
+            top5all.append(best5)
+
+        pd_top5 = pd.DataFrame(top5all)
+        pd_top5.columns = ['top1','top2','top3','top4','top5']
+        pd_logits = pd.concat([pd_logits, pd_top5], axis=1)
+        pd_logits.to_csv(self.complete_save_dir + 'best_vallogits.tsv',sep='\t')
+
+        to_check = pd_top5['top1']
+        correct1 = y_true==to_check
+        top1acc = sum(correct1)/len(correct1)
+
+        to_check = pd_top5['top2']
+        correct2 = y_true==to_check
+        correct2 = correct1 | correct2
+        top2acc = sum(correct2)/len(correct2)
+
+        to_check = pd_top5['top3']
+        correct3 = y_true==to_check
+        correct3 = correct2 | correct3
+        top3acc = sum(correct3)/len(correct3)
+
+        to_check = pd_top5['top4']
+        correct4 = y_true==to_check
+        correct4 = correct3 | correct4
+        top4acc = sum(correct4)/len(correct4)
+
+        to_check = pd_top5['top5']
+        correct5 = y_true==to_check
+        correct5 = correct4 | correct5
+        top5acc = sum(correct5)/len(correct5)
+
+        acc = top1acc
+
+        label = y_score.columns
+        y_pred = pd_top5['top1']
 
         conf_mat = confusion_matrix(y_true, y_pred)
         conf_mat_norm = conf_mat.astype('float') / conf_mat.sum(axis=1)[:, np.newaxis]
 
         df_cm = pd.DataFrame(conf_mat, index = label,columns = label)
 
-        try:
-            df_cm.to_csv(self.config.ckpt_path + 'conf_mat.csv')
-        except:
-            pdb.set_trace()
-        df_cm.to_csv(self.config.ckpt_path + 'conf_mat.csv')
-
-        #pdb.set_trace()
+        df_cm.to_csv(self.complete_save_dir + 'conf_mat.csv')
 
         plt.figure(figsize=(15,15))
         plot = sns.heatmap(df_cm, annot=True)
         fig = plot.get_figure()   
         plt.ylabel("actual")
         plt.tight_layout() 
-        fig.savefig(self.config.ckpt_path + 'conf_mat.png')
+        fig.savefig(self.complete_save_dir + 'conf_mat.png')
         plt.clf()
 
         df_cm = pd.DataFrame(conf_mat_norm, index = label,columns = label)
-        df_cm.to_csv(self.config.ckpt_path + 'conf_mat_norm.csv')
+        df_cm.to_csv(self.complete_save_dir + 'conf_mat_norm.csv')
         
         plt.figure(figsize=(15,15))
         plot = sns.heatmap(df_cm, annot=True,fmt='.2f')
         fig = plot.get_figure()   
         plt.ylabel("actual")
         plt.tight_layout() 
-        fig.savefig(self.config.ckpt_path + 'conf_mat_norm.png')
+        fig.savefig(self.complete_save_dir + 'conf_mat_norm.png')
         plt.clf()
 
         prec_rec_f1 = precision_recall_fscore_support(y_true,y_pred)
@@ -139,53 +166,30 @@ class Trainer:
         fig = plot.get_figure()
         plt.ylabel("acc:{0:.2f}".format(acc))   
         fig.tight_layout() 
-        fig.savefig(self.config.ckpt_path + str(epoch) + 'prf.png')
+        fig.savefig(self.complete_save_dir + str(epoch) + 'prf.png')
         plt.clf()
         
-        df_cm.insert(3, "acc", acc, True) 
+        df_cm.insert(3, "top1", acc, True)
+        df_cm.insert(4, "top2", top2acc, True)
+        df_cm.insert(5, "top3", top3acc, True) 
+        df_cm.insert(6, "top4", top4acc, True)
+        df_cm.insert(7, "top5", top5acc, True)
 
-        df_cm.to_csv(self.config.ckpt_path  + str(epoch) + 'prf.csv')
+        df_cm.to_csv(self.complete_save_dir  + str(epoch) + 'prf.csv')
 
     def save_checkpoint(self,epoch):
-
         if self.config.args.save_ckpt_dir != '':
-            os.makedirs(self.config.args.save_ckpt_dir, exist_ok=True)
             #ckpt_model = self.model.module if hasattr(self.model, "module") else self.model
-            logger.info("saving %s", (self.config.args.save_ckpt_dir + self.config.ckpt_name + '.pth') )
+            logger.info("saving %s", (self.complete_save_dir + self.config.ckpt_name + '.pth') )
 
             ckpt_model = self.model.state_dict()
 
             ckpt_args = [ckpt_model,self.config.args]
-            torch.save(ckpt_args, (self.config.args.save_ckpt_dir + self.config.ckpt_name  + '.pthx'))
+            torch.save(ckpt_args, (self.complete_save_dir + self.config.ckpt_name  + '.pthx'))
+            torch.save(ckpt_args, (self.complete_save_dir + self.config.ckpt_name + str(epoch)  + '.pth'))
             
-            try:
-                self.vis_plot(epoch)
-            except:
-                pass
-
-    def save_checkpointall(self,epoch):
-
-        if self.config.string_logs is not None:
-
-            pwd = os.getcwd()
-
-            if pwd == 'G:\\experiment\\litegpt':
-                self.config.ckpt_path='./ckpt/' + self.config.string_logs
-            elif pwd == '/csc/epitkane/projects/litegpt':
-                self.config.ckpt_path='./ckptnew/' + self.config.string_logs
-            else:
-                self.config.ckpt_path='/scratch/project_2001668/primasan/ckpt/' + self.config.string_logs
+            self.vis_plot(epoch)
             
-            os.makedirs(self.config.ckpt_path, exist_ok=True)
-
-            #ckpt_model = self.model.module if hasattr(self.model, "module") else self.model
-            logger.info("saving %s", (self.config.ckpt_path + self.config.ckpt_name + '.pth') )
-
-            ckpt_model = self.model.state_dict()
-            #torch.save(ckpt_model, (self.config.ckpt_path + self.config.ckpt_name  + '.pth'))
-            torch.save(self.model.state_dict(), (self.config.ckpt_path + self.config.ckpt_name  + str(epoch)+ '.pth'))
-
-
     def dynamic_stream(self):
         model, config = self.model, self.config
         model = model.to(self.device)
@@ -206,6 +210,21 @@ class Trainer:
 
             self.all_predicted = []
             self.all_target = []
+            #self.all_logits = []
+            
+            #create logits header file
+            if is_train:
+                self.logit_filename = 'train_logits.tsv'
+            else:
+                self.logit_filename = 'val_logits.tsv'
+                f = open(self.complete_save_dir + self.logit_filename, 'w+')  # open file in write mode
+                header_class = loader.pd_class_info['class_name'].tolist()
+                header_class.append('target')
+                header_class.append('target_name')
+                header_class.append('sample')
+                write_header = "\t".join(header_class)
+                f.write(write_header)
+                f.close()
 
             for it in range(0,len(loader)):
             #for it in range(0,10):
@@ -244,16 +263,29 @@ class Trainer:
                     self.all_predicted.append(predicted.detach().cpu().numpy())
                     self.all_target.append(y.detach().cpu().numpy())
 
+                    if not is_train:
+                        logits_cpu =logits.detach().cpu().numpy()
+                        f = open(self.complete_save_dir + self.logit_filename, 'a+')
+                        logits_cpu = logits_cpu.flatten()
+                        logits_cpu = logits_cpu.tolist()
+                        f.write('\n')
+                        write_logits = ["%.8f" % i for i in logits_cpu]
+                        write_logits.append(str(y.detach().cpu().numpy().tolist()[0]))
+                        write_logits.append(x[0][1])
+                        write_logits.append(x[0][0])
+                        write_header = "\t".join(write_logits)
+                        f.write(write_header)
+                        f.close()
+
                 if is_train:
                     # backprop and update the parameters
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
                     # report progress
+                    
                     if it % 1000 == 0:
                         print(f"epoch {epoch+1} iter {it}/{len(loader)}/{selected_index[it]}: train loss {loss.item():.5f}, acc {acc:.2f}, ({correct}/{total})")
-                        #pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}, acc {acc:.2f}, ({correct}/{total})")
-                        #self.save_checkpoint()
 
             if not is_train:
                 logger.info("validation_loss : %f, validation acc: %f", np.mean(losses), acc)
@@ -261,8 +293,10 @@ class Trainer:
                     self.global_acc = acc
                     print(self.global_acc)
                     print('bestepoch-' + str(epoch))
+
+                    shutil.copyfile(self.complete_save_dir + self.logit_filename, self.complete_save_dir + 'best_vallogits.tsv')
+                    os.remove(self.complete_save_dir + self.logit_filename)
                     self.save_checkpoint(epoch)
-                    #self.save_checkpointall(epoch)
 
         self.tokens = 0 # counter used for learning rate decay
 
@@ -273,6 +307,145 @@ class Trainer:
             if self.test_dataset is not None:
                 selected_index = np.arange(len(self.test_dataset))
                 run_epoch('test')
+    
+
+    def batch_train(self):
+        model, config = self.model, self.config
+        model = model.to(self.device)
+
+        model = torch.nn.DataParallel(model).to(self.device)
+        optimizer = optim.SGD(model.parameters(), lr=config.learning_rate, momentum=0.9,weight_decay=config.weight_decay)
+
+        batch_size = self.config.args.batch_size
+
+        trainloader = torch.utils.data.DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
+        valloader = torch.utils.data.DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
+
+        self.global_acc = 0
+
+        for e in range(config.max_epochs):
+            running_loss = 0
+            model.train(True)
+
+            train_corr = 0
+            for batch_idx, (data, target) in enumerate(trainloader):
+                string_data = data[0]
+                numeric_data = data[1]
+
+                for i in range(len(numeric_data)):
+                    numeric_data[i] = numeric_data[i].to(self.device)
+
+                target = target.to(self.device)
+
+                # forward the model
+                with torch.set_grad_enabled(True):
+
+                    optimizer.zero_grad()
+
+                    logits, loss = model(numeric_data, target)
+                    pred = logits.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+                    train_corr += pred.eq(target.view_as(pred)).sum().item()
+                    
+                    loss.backward()
+                    #And optimizes its weights here
+                    optimizer.step()
+                    running_loss += loss.item()
+
+                    train_acc = train_corr / len(self.train_dataset)
+
+                    if batch_idx % 100 == 0:
+                        print("Epoch {} - Training loss: {:.4f} - Training Acc: {:.2f}".format(e, running_loss/len(self.train_dataset),  train_acc))
+
+            #val
+            test_loss = 0
+            correct = 0
+
+            self.logit_filename = 'val_logits.tsv'
+            f = open(self.complete_save_dir + self.logit_filename, 'w+')  # open file in write mode
+            header_class = self.test_dataset.pd_class_info['class_name'].tolist()
+            header_class.append('target')
+            header_class.append('target_name')
+            header_class.append('sample')
+            write_header = "\t".join(header_class)
+            f.write(write_header)
+            f.close()
+
+            model.train(False)
+            for (data, target) in valloader:
+                string_data = data[0]
+                numeric_data = data[1]
+                for i in range(len(numeric_data)):
+                    numeric_data[i] = numeric_data[i].to(self.device)
+                target = target.to(self.device)
+                # forward the model
+                with torch.set_grad_enabled(False):
+                    logits, loss = model(numeric_data, target)
+                    _, predicted = torch.max(logits.data, 1)
+
+                    predicted = logits.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+                    correct += predicted.eq(target.view_as(predicted)).sum().item()
+
+                    #write logits
+                    logits_cpu =logits.detach().cpu().numpy()
+                    f = open(self.complete_save_dir + self.logit_filename, 'a+')
+                    for i in range(numeric_data[0].shape[0]):
+                        f.write('\n')
+                        logits_cpu_flat = logits_cpu[i].flatten()
+                        logits_cpu_list = logits_cpu_flat.tolist()    
+                        write_logits = ["%.8f" % i for i in logits_cpu_list]
+                        write_logits.append(str(target.detach().cpu().numpy().tolist()[0]))
+                        write_logits.append(string_data[1][i])
+                        write_logits.append(string_data[0][i])
+                        write_header = "\t".join(write_logits)
+                        f.write(write_header)
+                    f.close()
+
+            test_loss /= len(self.test_dataset)
+            
+
+            local_acc = correct / len(self.test_dataset)
+            print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+                test_loss, correct, len(self.test_dataset), 100. * local_acc))
+
+            if local_acc > self.global_acc:
+                self.global_acc = local_acc
+                print(self.global_acc)
+                shutil.copyfile(self.complete_save_dir + self.logit_filename, self.complete_save_dir + 'best_vallogits.tsv')
+                os.remove(self.complete_save_dir + self.logit_filename)
+                self.save_checkpoint(e)
+
+
+        def run_epoch(split):
+            is_train = split == 'train'
+            model.train(is_train)
+            data = self.train_dataset if is_train else self.test_dataset
+            loader = data
+            losses = []
+            np.random.shuffle(selected_index)
+
+            total = 0
+            correct = 0
+
+            self.all_predicted = []
+            self.all_target = []
+            #self.all_logits = []
+            
+            #create logits header file
+            if is_train:
+                self.logit_filename = 'train_logits.tsv'
+            else:
+                self.logit_filename = 'val_logits.tsv'
+                f = open(self.complete_save_dir + self.logit_filename, 'w+')  # open file in write mode
+                header_class = loader.pd_class_info['class_name'].tolist()
+                header_class.append('target')
+                header_class.append('target_name')
+                header_class.append('sample')
+                write_header = "\t".join(header_class)
+                f.write(write_header)
+                f.close()
+
+                
+    
 
     def visualize_attention(self,visatt):
         model, config = self.model, self.config

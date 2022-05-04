@@ -1,0 +1,20 @@
+# Use "conda env create -f muat-conda.yml" to create conda environment
+# and "conda env update -f muat-conda.yml" to update the environment.
+#
+# Use "source activate muat" to activate the environment.
+#
+# See https://bioconda.github.io/recipes.html for list of bioconda packages
+#
+
+name: muat
+channels:
+  - bioconda
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.7
+  - pytorch=1.8
+  - tqdm
+  - scikit-learn
+  - tensorboardx
+  - seaborn

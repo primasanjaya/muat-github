@@ -63,15 +63,15 @@ def preprocessing_fromdmm(args):
     Normalonly = mergeAlltoken.loc[mergeAlltoken['type']=='Neg']
     Normalonly = Normalonly.drop(columns=['type'])
 
-    NiSionly.to_csv(args.tmp_dir + 'SNV_new_' + filename + '.csv')
-    SNVonly.to_csv(args.tmp_dir + 'MNV_new_' + filename + '.csv')
-    indelonly.to_csv(args.tmp_dir + 'indel_new_' + filename + '.csv')
-    MEISVonly.to_csv(args.tmp_dir + 'MEISV_new_' + filename + '.csv')
-    Normalonly.to_csv(args.tmp_dir + 'Neg_new_' + filename + '.csv')
+    NiSionly.to_csv(args.tmp_dir + 'SNV_' + filename + '.csv')
+    SNVonly.to_csv(args.tmp_dir + 'MNV_' + filename + '.csv')
+    indelonly.to_csv(args.tmp_dir + 'indel_' + filename + '.csv')
+    MEISVonly.to_csv(args.tmp_dir + 'MEISV_' + filename + '.csv')
+    Normalonly.to_csv(args.tmp_dir + 'Neg_' + filename + '.csv')
 
     pd_count = pd.DataFrame([len(NiSionly),len(SNVonly),len(indelonly),len(MEISVonly),len(Normalonly)])
 
-    pd_count.to_csv(args.tmp_dir + 'count_new_' + filename + '.csv')
+    pd_count.to_csv(args.tmp_dir + 'count_' + filename + '.csv')
 
 if __name__ == '__main__':
 

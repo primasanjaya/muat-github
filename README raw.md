@@ -53,7 +53,7 @@ python main.py --dataloader 'pcawg' --block-size 5000 --n-class 24 --n-layer 2 -
 
 
 IV) Predicting vcf files from pretrained model
-python main.py --dataloader 'pcawg' --input-data-dir '/mnt/g/experiment/muat/data/raw/vcf/' --input-filename '00b9d0e6-69dc-4345-bffd-ce32880c8eef.consensus.20160830.somatic.snv_mnv.vcf' --tmp-dir '/mnt/g/experiment/muat/data/raw/temp/' --reference '/mnt/g/experiment/muat/hs37d5_1000GP.fa' --load-ckpt-dir '/mnt/g/experiment/muat/bestckpt/wgs/' --load-ckpt-filename 'motif+position_features.pthx' --output-pred-dir '/mnt/g/experiment/muat/data/raw/outputdir/' --output-prefix 'test' --single-pred-vcf --get-features
+python main.py --dataloader 'pcawg' --input-data-dir '/mnt/g/experiment/muat/data/raw/vcf/' --input-filename '00b9d0e6-69dc-4345-bffd-ce32880c8eef.consensus.20160830.somatic.snv_mnv.vcf' --tmp-dir '/mnt/g/experiment/muat/data/raw/temp/' --reference '/mnt/g/experiment/muat/ref/ref.fa' --load-ckpt-dir '/mnt/g/experiment/muat/bestckpt/wgs/' --load-ckpt-filename 'motif+position_features.pthx' --output-pred-dir '/mnt/g/experiment/muat/data/raw/outputdir/' --output-prefix 'test' --single-pred-vcf --get-features
 
 Notes: --get-features, --output-prefix are optional
 

@@ -31,11 +31,12 @@ class TCGAPCAWG_Dataloader(Dataset):
                 crossdatadir=None,
                 pcawg2tgca_class=False,
                 tcga2pcawg_class=False,
-                mutratio = '1-0-0-0-0-0',
+                mutratio = '1-0-0-0-0',
                 adddatadir = None,
                 input_filename=None,
-                args = None):
-
+                args = None,
+                gx_dir=None,
+                addepigen=False):
 
         self.dataset_name = dataset_name
         self.data_dir=data_dir
@@ -53,6 +54,8 @@ class TCGAPCAWG_Dataloader(Dataset):
         self.crossdatadir = crossdatadir
         self.adddatadir = adddatadir
         self.args = args
+        self.gx_dir = gx_dir
+        self.mutratio = mutratio
 
         self.pcawg2tgca_class=pcawg2tgca_class
         self.tcga2pcawg_class=tcga2pcawg_class
@@ -65,6 +68,16 @@ class TCGAPCAWG_Dataloader(Dataset):
         self.indel = False
         self.SVMEI = False
         self.Normal = False
+
+        self.dnn_input = 1
+
+        if self.args == None:
+            self.single_pred_vcf = False
+            self.cwd = str(os.path.abspath('..')) + '/'
+        else:
+            self.single_pred_vcf = self.args.single_pred_vcf
+            self.cwd = self.args.cwd
+
 
         self.input_filename = input_filename
 
@@ -83,14 +96,13 @@ class TCGAPCAWG_Dataloader(Dataset):
                 self.test_fold = self.validation_fold
                 self.newformat = True
             
-            if self.args.single_pred_vcf:
+            if self.single_pred_vcf:
                 self.onlyfilename = self.args.input_filename[:-4]
                 onetup = [(self.onlyfilename,'',1,1)]
                 self.validation_fold = pd.DataFrame(onetup,columns =['samples', 'nm_class', 'slices','fold'])
                 self.test_fold = self.validation_fold
                 
                 self.newformat = True
-
             '''
             else:
                 if self.newformat:
@@ -111,7 +123,21 @@ class TCGAPCAWG_Dataloader(Dataset):
         elif self.dataset_name == 'wgspcawg':
             self.training_fold = pd.read_csv('./dataset_utils/pcawgwgs_trainfold' + str(self.curr_fold) + '.csv',index_col=0)
             self.validation_fold = pd.read_csv('./dataset_utils/pcawgwgs_valfold' + str(self.curr_fold) + '.csv',index_col=0)
-        
+
+        if self.dataset_name == 'wgsgx':
+            self.gx = pd.read_csv(self.gx_dir + 'PCAWG_gene_expression.tsv',sep='\t',index_col=0)
+            #self.gx = self.gx.iloc[:,-100:]
+
+            self.training_fold = pd.read_csv(self.cwd + 'dataset_utils/wgsgx_train.csv',index_col=0)
+            self.training_fold = self.training_fold.loc[self.training_fold['fold'] == self.curr_fold]
+
+            self.validation_fold = pd.read_csv(self.cwd + 'dataset_utils/wgsgx_val.csv',index_col=0)
+            self.validation_fold = self.validation_fold.loc[self.validation_fold['fold'] == self.curr_fold]  
+            self.newformat = True
+
+            self.dnn_input = len(self.gx.iloc[0,:-2])
+            #pdb.set_trace()
+
         if self.adddatadir is not None:
             adddata = pd.DataFrame(columns=self.validation_fold.columns)
             adddata.columns = self.validation_fold.columns
@@ -141,9 +167,9 @@ class TCGAPCAWG_Dataloader(Dataset):
             self.validation_fold = self.adddata
             self.data_dir = self.adddatadir
 
-        if self.args.single_pred_vcf:
+        if self.single_pred_vcf:
             samples_names = input_filename[:-4]
-            pd_count = pd.read_csv(args.tmp_dir + 'count_new_' + input_filename[:-4] + '.csv', index_col=0)['0'].to_list()
+            pd_count = pd.read_csv(args.tmp_dir + 'count_' + input_filename[:-4] + '.csv', index_col=0)['0'].to_list()
             onerow = ['',samples_names] + pd_count + [1]
             pd_data = pd.DataFrame(onerow).T
             pd_data.columns = ['nm_class','samples','NiSi','SNV','indel','SVMEI','Normal','fold']
@@ -152,23 +178,25 @@ class TCGAPCAWG_Dataloader(Dataset):
 
         self.load_classinfo()
 
-        self.vocab_mutation = pd.read_csv('./extfile/dictMutation.csv',index_col=0)
+        self.vocab_mutation = pd.read_csv(self.cwd + 'extfile/dictMutation.csv',index_col=0)
         self.allSNV_index = 0
 
-        self.mutratio = mutratio.split('-')
-        self.mutratio = [float(i) for i in self.mutratio]
+        if self.mutratio is not None:
+            self.mutratio = mutratio.split('-')
+            self.mutratio = [float(i) for i in self.mutratio]
         
-        if self.mutratio[0]>0:
-           self.NiSi = True 
-        if self.mutratio[1]>0:
-            self.SNV = True
-        if self.mutratio[2]>0:
-            self.indel = True
-        if self.mutratio[3]>0:
-            self.SVMEI = True
-        if self.mutratio[4]>0:
-            self.Normal = True
+            if self.mutratio[0]>0:
+                self.NiSi = True 
+            if self.mutratio[1]>0:
+                self.SNV = True
+            if self.mutratio[2]>0:
+                self.indel = True
+            if self.mutratio[3]>0:
+                self.SVMEI = True
+            if self.mutratio[4]>0:
+                self.Normal = True
 
+        vocabsize = 0
         if self.NiSi:
             vocabsize = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='NiSi'])
             if self.SNV:
@@ -185,8 +213,8 @@ class TCGAPCAWG_Dataloader(Dataset):
 
         #pdb.set_trace()
 
-        self.pd_position_vocab = pd.read_csv('./extfile/dictChpos.csv',index_col=0)
-        self.pd_ges_vocab = pd.read_csv('./extfile/dictGES.csv',index_col=0)
+        self.pd_position_vocab = pd.read_csv(self.cwd + 'extfile/dictChpos.csv',index_col=0)
+        self.pd_ges_vocab = pd.read_csv(self.cwd + 'extfile/dictGES.csv',index_col=0)
 
         self.position_size = len(self.pd_position_vocab) + 1
         self.ges_size = len(self.pd_ges_vocab) + 1
@@ -206,7 +234,10 @@ class TCGAPCAWG_Dataloader(Dataset):
 
     def load_classinfo(self):
         if self.dataset_name == 'pcawg':
-            pd_data = pd.read_csv('./dataset_utils/classinfo_pcawg.csv',index_col = 0)
+            pd_data = pd.read_csv(self.cwd + 'dataset_utils/classinfo_pcawg.csv',index_col = 0)
+            self.pd_class_info = pd.DataFrame(pd_data)
+        elif self.dataset_name == 'wgsgx':
+            pd_data = pd.read_csv(self.cwd + 'dataset_utils/classinfo_wgsgx.csv',index_col = 0)
             self.pd_class_info = pd.DataFrame(pd_data)
         else:
             num_class = os.listdir(self.data_dir)
@@ -231,40 +262,23 @@ class TCGAPCAWG_Dataloader(Dataset):
 
         if self.newformat:
             samples = instances['samples'] + '.csv'
-            pd_row = pd.read_csv(self.data_dir + 'count_new_' + samples,index_col=0).T
-            row_count = pd_row.values[0]
-
             target_name = instances['nm_class']
+
+            if self.single_pred_vcf:
+                pd_row = pd.read_csv(self.data_dir +'/count_' + samples,index_col=0).T
+                row_count = pd_row.values[0]
+            else:
+                pd_row = pd.read_csv(self.data_dir + target_name +'/count_' + samples,index_col=0).T
+                row_count = pd_row.values[0]
+            
         else:
             target_name = instances['nm_class']
             samples = instances[1]
             row_count = instances[['NiSi','SNV','indel','SVMEI','Normal']].to_numpy()
 
-        avail_count = np.asarray(self.mutratio) * self.block_size        
-        
-        diff = avail_count - row_count
-        pos = diff>0
-        avail_count1 = row_count * pos
-        diff = row_count > avail_count
-
-        avail_count2 = avail_count * diff
-        avail_count3 = avail_count1 + avail_count2
-        shadowavail_count3 = avail_count3
-        shadowavail_count3[0] = row_count[0]
-
-        if sum(shadowavail_count3) > self.block_size:
-            diff = self.block_size - sum(avail_count3) 
-            shadowavail_count3[0] = diff + avail_count3[0]
+        if self.mutratio is not None:
+            avail_count = np.asarray(self.mutratio) * self.block_size      
             
-        avail_count2 = shadowavail_count3.astype(int)
-
-        if avail_count2[0]<0:
-  
-            secondmax = avail_count2[np.argmax(avail_count2)]
-            avail_count2 = avail_count2 * 0.7
-
-            avail_count = avail_count2
-
             diff = avail_count - row_count
             pos = diff>0
             avail_count1 = row_count * pos
@@ -281,18 +295,42 @@ class TCGAPCAWG_Dataloader(Dataset):
                 
             avail_count2 = shadowavail_count3.astype(int)
 
-        avail_count = avail_count2
+            if avail_count2[0]<0:
+    
+                secondmax = avail_count2[np.argmax(avail_count2)]
+                avail_count2 = avail_count2 * 0.7
+
+                avail_count = avail_count2
+
+                diff = avail_count - row_count
+                pos = diff>0
+                avail_count1 = row_count * pos
+                diff = row_count > avail_count
+
+                avail_count2 = avail_count * diff
+                avail_count3 = avail_count1 + avail_count2
+                shadowavail_count3 = avail_count3
+                shadowavail_count3[0] = row_count[0]
+
+                if sum(shadowavail_count3) > self.block_size:
+                    diff = self.block_size - sum(avail_count3) 
+                    shadowavail_count3[0] = diff + avail_count3[0]
+                    
+                avail_count2 = shadowavail_count3.astype(int)
+
+            avail_count = avail_count2
 
     
         def grab(pd_input,grabcol):
             return pd_input[grabcol]
 
         def allgrab(grabcol):
+            
 
             if self.NiSi:
                 #pdb.set_trace()
                 if self.newformat:
-                    pd_nisi = pd.read_csv(self.data_dir + target_name + '/' + 'SNV_new_' + samples,index_col=0)
+                    pd_nisi = pd.read_csv(self.data_dir + target_name + '/' + 'SNV_' + samples,index_col=0)
                 else:
                     pd_nisi = pd.read_csv(self.data_dir + target_name + '/' + 'NiSi_new_' + samples,index_col=0)
                 pd_nisi = pd_nisi.sample(n = avail_count[0], replace = False)
@@ -300,7 +338,7 @@ class TCGAPCAWG_Dataloader(Dataset):
 
                 if self.SNV:
                     if self.newformat:
-                        pd_SNV = pd.read_csv(self.data_dir + target_name + '/' + 'MNV_new_' + samples,index_col=0)
+                        pd_SNV = pd.read_csv(self.data_dir + target_name + '/' + 'MNV_' + samples,index_col=0)
                     else:
                         pd_SNV = pd.read_csv(self.data_dir + target_name + '/' + 'SNV_new_' + samples,index_col=0)
                     pd_SNV = pd_SNV.sample(n = avail_count[1], replace = False)
@@ -308,20 +346,23 @@ class TCGAPCAWG_Dataloader(Dataset):
                     pd_nisi = pd_nisi.append(pd_SNV)
 
                     if self.indel:
-                        pd_indel = pd.read_csv(self.data_dir + target_name + '/' + 'indel_new_' + samples,index_col=0)
+                        pd_indel = pd.read_csv(self.data_dir + target_name + '/' + 'indel_' + samples,index_col=0)
                         pd_indel = pd_indel.sample(n = avail_count[2], replace = False)
                         pd_indel = grab(pd_indel,grabcol)
                         pd_nisi = pd_nisi.append(pd_indel)
                         
                         if self.SVMEI:
-                            pd_meisv = pd.read_csv(self.data_dir + target_name + '/' + 'MEISV_new_' + samples,index_col=0)
+                            if self.newformat:
+                                pd_meisv = pd.read_csv(self.data_dir + target_name + '/' + 'MEISV_' + samples,index_col=0)
+                            else:
+                                pd_meisv = pd.read_csv(self.data_dir + target_name + '/' + 'MEISV_new_' + samples,index_col=0)
                             pd_meisv = pd_meisv.sample(n = avail_count[3], replace = False)
                             pd_meisv = grab(pd_meisv,grabcol)
                             pd_nisi = pd_nisi.append(pd_meisv)
 
                             if self.Normal:
                                 if self.newformat:
-                                    pd_normal = pd.read_csv(self.data_dir + target_name + '/' + 'Neg_new_' + samples,index_col=0)
+                                    pd_normal = pd.read_csv(self.data_dir + target_name + '/' + 'Neg_' + samples,index_col=0)
                                 else:
                                     pd_normal = pd.read_csv(self.data_dir + target_name + '/' + 'Normal_new_' + samples,index_col=0)
                                 pd_normal = pd_normal.sample(n = avail_count[4], replace = False)
@@ -331,6 +372,7 @@ class TCGAPCAWG_Dataloader(Dataset):
                 pd_nisi = pd_nisi.fillna(0)
             return pd_nisi
 
+        pd_nisi = pd.DataFrame()
         if self.addtriplettoken:
             if self.mode=='training' :
                 pd_nisi = allgrab(['triplettoken'])
@@ -399,14 +441,13 @@ class TCGAPCAWG_Dataloader(Dataset):
 
         #pdb.set_trace()
         pd_nisi = pd_nisi.dropna()
-
-        '''
+        
         if self.nummut > 0:
             if self.nummut < len(pd_nisi):
                 pd_nisi = pd_nisi.sample(n = self.nummut, replace = False)
             else:
                 pd_nisi = pd_nisi.sample(n = len(pd_nisi), replace = False)
-        '''        
+               
         #pdb.set_trace()
 
         if self.frac > 0:
@@ -445,6 +486,14 @@ class TCGAPCAWG_Dataloader(Dataset):
         
         datastring = samples
 
+        if self.dataset_name=='wgsgx':
+            #pdb.set_trace()
+            gx_data = self.gx.loc[self.gx['samples']==samples[:-4]]
+            gx_data = gx_data.iloc[:,:-2].values
+            tensorgx_data = torch.tensor(gx_data, dtype=torch.float)
+
+            datanumeric.append(tensorgx_data)
+
         #print(datanumeric)
         data=[datastring,datanumeric]
         #pdb.set_trace()
@@ -459,6 +508,7 @@ class TCGAPCAWG_Dataloader(Dataset):
             target = torch.tensor(target, dtype=torch.long)
         else:
             target = ''
+
 
         if self.adddatadir is not None:
             return data,[target,target_name]
@@ -491,7 +541,7 @@ if __name__ == '__main__':
     #/csc/epitkane/projects/PCAWG20191001/data/modified_data/train/new24classes/
 
     #G:/experiment/data/new24classes/
-
+    '''
     dataloaderVal = FinalTCGAPCAWG(dataset_name = 'finalpcawg', 
                                 data_dir='G:/experiment/data/new24classes/', 
                                 mode='validation', 
@@ -514,8 +564,36 @@ if __name__ == '__main__':
     for k in range(0,len(dataloaderVal)):
         print(k)
         data,target = dataloaderVal.__getitem__(k)
+    '''
 
 
+
+    '''
+    WGS GX
+    '''
+
+    #/scratch/project_2001668/data/pcawg
+
+    dataloaderVal = TCGAPCAWG_Dataloader(dataset_name = 'wgsgx', 
+                                        data_dir='/scratch/project_2001668/data/pcawg/allclasses/newformat/', 
+                                        mode='training', 
+                                        curr_fold=1, 
+                                        block_size=5000, 
+                                        load=False,
+                                        addtriplettoken=True,
+                                        addpostoken=False,
+                                        addgestoken=False,
+                                        addrt=False,
+                                        nummut = 0,
+                                        frac = 0,
+                                        mutratio = '1-0-0-0-0',
+                                        adddatadir = None,
+                                        input_filename=None,
+                                        args = None,
+                                        gx_dir = '/scratch/project_2001668/data/pcawg/PCAWG_geneexp/')
+    
+    data,target = dataloaderVal.__getitem__(0)
+    pdb.set_trace()
 
     '''
     fold = [1,2,3,4,5,6,7,8,9,10]

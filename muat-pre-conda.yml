@@ -1,0 +1,19 @@
+# Use "conda env create -f muat-pre-conda.yml" to create conda environment
+# and "conda env update -f muat-pre-conda.yml" to update the environment.
+#
+# Use "source activate muat-pre" to activate the environment.
+#
+# See https://bioconda.github.io/recipes.html for list of bioconda packages
+#
+
+name: muat-pre
+channels:
+  - bioconda
+  - anaconda
+dependencies:
+  - python=2.7
+  - pandas
+  - numpy
+  - bedops
+  - swalign
+  - tabix

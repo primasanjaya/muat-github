@@ -1,0 +1,7 @@
+Get the mc3 files from epitkane/data/tcga/ (preprocessing step with dmm) 
+
+1) run muat/preprocessing/notebook/tcga/tcga_create_simplified_data.py
+2) run muat/preprocessing/notebook/tcga/tcga_create_tokenized_mot+pos+ges.py
+3) run muat/preprocessing/notebook/tcga/tcga_create_epigen_data_slurm.py
+
+
