@@ -24,6 +24,3 @@ temp/
 *.gz
 local_script.txt
 results/
-data/raw/temp/*
-data/raw/output/*
-ref/*
