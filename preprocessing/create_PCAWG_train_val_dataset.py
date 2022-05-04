@@ -7,7 +7,7 @@ import pdb
 total_fold = 10
 
 #pcawg dir --> new pcawg directory
-pcawg_dir = '/csc/epitkane/projects/PCAWG20191001/data/modified_data/train/new24classes/'
+pcawg_dir = 'pathto/data/'
 
 #output dir --> to projectdir/dataset_utils
 output_dir = '../dataset_utils/'

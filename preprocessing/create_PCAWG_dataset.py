@@ -6,15 +6,15 @@ import pdb
 import math
 
 #requirements:
-metadata = pd.read_csv('/csc/epitkane/projects/muat/extfile/metadata_icgc_pcawg.tsv',sep='\t',index_col=0) 
-dictMutation = pd.read_csv('/csc/epitkane/projects/muat/extfile//dictMutation.csv',index_col=0)
-dictChpos = pd.read_csv('/csc/epitkane/projects/muat/extfile/dictChpos.csv',index_col=0)
-dictGES = pd.read_csv('/csc/epitkane/projects/muat/extfile/dictGES.csv',index_col=0)
+metadata = pd.read_csv('pathto/muat/extfile/metadata_icgc_pcawg.tsv',sep='\t',index_col=0) 
+dictMutation = pd.read_csv('pathto/muat/extfile/dictMutation.csv',index_col=0)
+dictChpos = pd.read_csv('pathto/muat/extfile/dictChpos.csv',index_col=0)
+dictGES = pd.read_csv('pathto/muat/extfile/dictGES.csv',index_col=0)
 
-icgc_data_dir = '/csc/epitkane/data/ICGC/release_28/Projects/'
+icgc_data_dir = 'pathto/data/ICGC/release_28/Projects/'
 
 #output dir --> new pcawg directory
-pcawg_dir = '/csc/epitkane/data/ICGC/release_28/pcawg_recreate/'
+pcawg_dir = 'pathto/data/ICGC/release_28/pcawg_recreate/'
 
 all_project = list(set(metadata['project_code'].to_list()))
 all_project.sort()
