@@ -24,3 +24,13 @@ temp/
 *.gz
 local_script.txt
 results/
+dmm_errors.txt
+main_old.py
+preproc-requirements.txt
+README raw.md
+README_puhti.md
+run_examples.py
+sample_dataset.py
+step.txt
+test.txt
+testpy2.py
