@@ -18,3 +18,6 @@ dependencies:
   - scikit-learn
   - tensorboardx
   - seaborn
+  - bedops
+  - gzip
+  - perl-io-uncompress-gunzip

@@ -2,7 +2,7 @@
 
 Mutation-Attention Model
 
-## Quick Start
+## Quick Start (Tested in Linux)
 
   * Clone muat repository
   * Go to muat repository
@@ -16,11 +16,18 @@ conda activate muat
 ```  
   * Download genome reference to ./ref:
 ```
-wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O ./ref/ref.fa
+wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz -O ./ref/ref.gz
+gunzip ./ref/ref.gz
+
 ``` 
+* Make sure that preprocessing/dmm/annotate_mutations_with_.sh is permitted to be executed.
+```
+chmod 755 preprocessing/dmm/annotate_mutations_with_.sh
+```
+
 * Predicting .vcf file with MuAt pretrained model :
 ```
-python3 main.py --dataloader 'pcawg' --input-file /path/to/muat/data/raw/vcf/file.vcf --reference /path/to/muat/ref/ref.fa --load-ckpt-file '/path/to/muat/bestckpt/wgs/motif+position_features.pthx' --output-pred-file '/path/to/muat/data/raw/output/test.csv' --single-pred-vcf --get-features
+python3 main.py --dataloader 'pcawg' --input-file /path/to/muat/data/raw/vcf/file.vcf --reference /path/to/muat/ref/ref --load-ckpt-file '/path/to/muat/bestckpt/wgs/motif+position_features.pthx' --output-pred-file '/path/to/muat/data/raw/output/test.csv' --single-pred-vcf --get-features
 ```
 
 

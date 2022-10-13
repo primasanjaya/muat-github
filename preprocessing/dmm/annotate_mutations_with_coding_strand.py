@@ -11,6 +11,7 @@ Adds a column to the input with the following possible values:
 
 import sys, argparse, gzip, subprocess, random, datetime
 from util import read_reference, openz
+import pdb
 
 def main(args):
     o = openz(args.output, 'wt')
@@ -26,6 +27,7 @@ def main(args):
     sys.stderr.write('Reading reference: ')
     reference = read_reference(args.ref, verbose=True)
     cmd = "bedmap --sweep-all --faster --delim '\t' --multidelim '\t' --echo --echo-map  <(gunzip -c {muts}|grep -v \"^chrom\"|awk 'BEGIN{{FS=OFS=\"\t\"}} {{$2 = $2 OFS $2+1}} 1') <(zcat {annot})".format(annot=args.annotation, muts=args.input)
+    pdb.set_trace()
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, executable='/bin/bash')
     prev_chrom = prev_pos = None
     seen_chroms = set()

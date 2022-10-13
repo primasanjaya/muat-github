@@ -220,6 +220,7 @@ def get_args():
         return args
 
 def execute_annotation(args,only_input_filename):
+    
     #gc content
     syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
     -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
@@ -229,7 +230,7 @@ def execute_annotation(args,only_input_filename):
     --reference ' + args.reference + ' \
     --verbose'
     subprocess.run(syntax_gc, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
+    #os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
 
     # Genic regions
     syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -238,7 +239,7 @@ def execute_annotation(args,only_input_filename):
     '+ args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
     genic'
     subprocess.run(syntax_genic, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
+    #os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
     #exon regions
     syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -248,7 +249,7 @@ def execute_annotation(args,only_input_filename):
     exonic'
     subprocess.run(syntax_exonic, shell=True)
     #pdb.set_trace()
-    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
+    #os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
 
     # Annotate dataset with gene orientation information
 
@@ -257,8 +258,10 @@ def execute_annotation(args,only_input_filename):
     -o '+ args.tmp_dir + only_input_filename + '.gc.genic.exonic.cs.tsv.gz \
     --annotation ' + args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz \
     --ref ' + args.reference
+
+    #pdb.set_trace()
     subprocess.run(syntax_geneorientation, shell=True)
-    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
+    #os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
 
 if __name__ == '__main__':
         best_accuracy=0

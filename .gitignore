@@ -15,11 +15,11 @@ puhti_*.sh
 cross_*.sh
 hs37d5_1000GP.fa
 results/
+temp/*
 *.sh
 execute_*.sh/
 *.pyc
 *.out
-temp/
 *.sh
 *.gz
 local_script.txt
@@ -34,3 +34,4 @@ sample_dataset.py
 step.txt
 test.txt
 testpy2.py
+ref/*
