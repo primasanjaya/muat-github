@@ -412,7 +412,7 @@ if __name__ == '__main__':
             cmd_preprocess(args)
 
             only_input_filename = args.input_filename[:-4]
-            #execute_annotation(args,only_input_filename)
+            execute_annotation(args,only_input_filename)
             preprocessing_fromdmm(args)
 
             device = 'cpu'
