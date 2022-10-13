@@ -2,7 +2,7 @@
 
 Mutation-Attention Model
 
-## Quick Start (Tested in Linux)
+## Quick Start (Tested on Linux)
 
   * Clone muat repository
   * Go to muat repository
