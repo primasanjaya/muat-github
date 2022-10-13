@@ -103,6 +103,8 @@ class TCGAPCAWG_Dataloader(Dataset):
                 self.test_fold = self.validation_fold
                 
                 self.newformat = True
+
+
             '''
             else:
                 if self.newformat:

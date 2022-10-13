@@ -444,9 +444,6 @@ class Trainer:
                 f.write(write_header)
                 f.close()
 
-                
-    
-
     def visualize_attention(self,visatt):
         model, config = self.model, self.config
 

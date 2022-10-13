@@ -35,3 +35,4 @@ step.txt
 test.txt
 testpy2.py
 ref/ref
+*.DS_store

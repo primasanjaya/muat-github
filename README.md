@@ -20,14 +20,19 @@ wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_refere
 gunzip ./ref/ref.gz
 
 ``` 
-* Make sure that preprocessing/dmm/annotate_mutations_with_.sh is permitted to be executed.
+* Make sure that preprocessing/dmm/annotate_mutations_with_bed.sh is permitted to be executed.
 ```
-chmod 755 preprocessing/dmm/annotate_mutations_with_.sh
+chmod 755 preprocessing/dmm/annotate_mutations_with_bed.sh
 ```
 
 * Predicting .vcf file with MuAt pretrained model :
 ```
-python3 main.py --dataloader 'pcawg' --input-file /path/to/muat/data/raw/vcf/file.vcf --reference /path/to/muat/ref/ref --load-ckpt-file '/path/to/muat/bestckpt/wgs/motif+position_features.pthx' --output-pred-file '/path/to/muat/data/raw/output/test.csv' --single-pred-vcf --get-features
+python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/motif+position_features.pthx' --output-pred-dir '/path/to/muat/data/raw/output/' --single-pred-vcf --get-features
+```
+
+* Predicting .vcf file with MuAt ensamble model :
+```
+python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensamble --get-features
 ```
 
 

@@ -161,6 +161,7 @@ def get_args():
         parser.add_argument('--motif-pos-ges', action='store_true', default=False)
         parser.add_argument('--motif-pos-ges-epi', action='store_true', default=False)
 
+        parser.add_argument('--ensamble', action='store_true', default=False)
 
         parser.add_argument('--get-features', action='store_true', default=False)
 
@@ -179,6 +180,8 @@ def get_args():
 
         parser.add_argument('--genomic-tracks', type=str, default=None, 
                             help='Genomic tracks directory')
+
+
 
         #dmm_parser
         parser.add_argument('-v', '--verbose', type=int, help='Try to be more verbose')
@@ -221,6 +224,7 @@ def get_args():
 
 def execute_annotation(args,only_input_filename):
     
+    
     #gc content
     syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
     -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
@@ -230,7 +234,7 @@ def execute_annotation(args,only_input_filename):
     --reference ' + args.reference + ' \
     --verbose'
     subprocess.run(syntax_gc, shell=True)
-    #os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
+    os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
 
     # Genic regions
     syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -239,7 +243,7 @@ def execute_annotation(args,only_input_filename):
     '+ args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz \
     genic'
     subprocess.run(syntax_genic, shell=True)
-    #os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
+    os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
     #exon regions
     syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -249,7 +253,7 @@ def execute_annotation(args,only_input_filename):
     exonic'
     subprocess.run(syntax_exonic, shell=True)
     #pdb.set_trace()
-    #os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
+    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.tsv.gz')
 
     # Annotate dataset with gene orientation information
 
@@ -261,7 +265,8 @@ def execute_annotation(args,only_input_filename):
 
     #pdb.set_trace()
     subprocess.run(syntax_geneorientation, shell=True)
-    #os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
+    os.remove(args.tmp_dir + only_input_filename + '.gc.genic.exonic.tsv.gz')
+    
 
 if __name__ == '__main__':
         best_accuracy=0
@@ -300,7 +305,6 @@ if __name__ == '__main__':
                 allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename,map_location=device)
             else:
                 allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename)
-
 
             if len(allckpt) == 2:
                 old_args = allckpt[1]
@@ -366,6 +370,7 @@ if __name__ == '__main__':
                 allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename)
 
             #check weight
+            #pdb.set_trace()
             if len(allckpt) == 3: #newformat
                 old_args = allckpt[1]
                 weight = allckpt[0]
@@ -399,6 +404,80 @@ if __name__ == '__main__':
             predictor = Predictor(model, None,[validation_dataset], tconf)
 
             predictor.predict(args.get_features,args.input_newdata_dir)
+
+
+        if args.ensamble:
+
+            args = translate_args(args)
+            cmd_preprocess(args)
+
+            only_input_filename = args.input_filename[:-4]
+            #execute_annotation(args,only_input_filename)
+            preprocessing_fromdmm(args)
+
+            device = 'cpu'
+            if torch.cuda.is_available():
+                device = torch.cuda.current_device()
+
+            all_folder = ['finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold2_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold3_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold4_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3',
+                        'finalpcawgFeaturefold5_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold6_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold7_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
+                        'finalpcawgFeaturefold8_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3',
+                        'finalpcawgFeaturefold9_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne128_cl3',
+                        'finalpcawgFeaturefold10_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3']
+            
+            args.single_pred_vcf = True #carefull this is used in args.single pred. will be called twice if this is put above single_pred vcf
+            for i in range(len(all_folder)):
+
+                folder1 = all_folder[i]
+                args.output_prefix = 'model' + str(i+1)
+                
+                #load ckpt
+                if device == 'cpu':
+                    allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename,map_location=device)
+                else:
+                    allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename)
+
+                #check weight
+                #pdb.set_trace()
+                if len(allckpt) == 3: #newformat
+                    old_args = allckpt[1]
+                    weight = allckpt[0]
+                    update_args(args,old_args)
+                else:
+                    print('Warning: this model is depricated')
+
+                validation_dataset = get_simplified_dataloader(args=args,train_val='validation',input_filename=args.input_filename)
+
+                mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, 
+                                    block_size=args.block_size,
+                                    num_class=args.n_class,
+                                    n_layer=args.n_layer,
+                                    n_head=args.n_head, 
+                                    n_embd=args.n_emb,
+                                    position_size=validation_dataset.position_size,
+                                    ges_size = validation_dataset.ges_size,
+                                    context_length=args.context_length,
+                                    args=args)
+
+                #pdb.set_trace()
+
+                model = get_model(args,mconf)
+
+                #load weight to the model
+                model = model.to(device)
+                model.load_state_dict(weight)
+
+                tconf = PredictorConfig(max_epochs=1, batch_size=1,num_workers=20, args=args)
+
+                predictor = Predictor(model, None,[validation_dataset], tconf)
+
+                predictor.predict(args.get_features,args.input_newdata_dir)
+        
 
         if args.multi_pred_vcf:
 

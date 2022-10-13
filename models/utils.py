@@ -77,6 +77,20 @@ def get_simplified_dataloader(args,train_val,input_filename):
                                     args = args
                                     )
 
+        if args.ensamble:
+            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
+                                    data_dir=args.tmp_dir,
+                                    mode='testing', 
+                                    curr_fold=args.fold, 
+                                    block_size=args.block_size, 
+                                    mutratio = args.mutratio,
+                                    addtriplettoken=args.motif,
+                                    addpostoken=args.motif_pos,
+                                    addgestoken=args.motif_pos_ges,
+                                    input_filename = input_filename,
+                                    args = args
+                                    )
+
         if args.train:
             dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
                                     data_dir=args.input_data_dir, 
@@ -250,13 +264,18 @@ def translate_args(args):
     args.input_filename = inputfile
     args.input = args.input_data_dir + args.input_filename
 
+    '''
     output_dir, outputfile = dir_filename_seperate(args.output_pred_file)
     args.output_pred_dir = output_dir
     args.output_pred_filename = outputfile
+    '''
 
-    ckpt_dir, ckpt_file = dir_filename_seperate(args.load_ckpt_file)
-    args.load_ckpt_dir = ckpt_dir
-    args.load_ckpt_filename = ckpt_file
+    if args.ensamble:
+        args.load_ckpt_filename = 'new_weight.pthx'
+    else:
+        ckpt_dir, ckpt_file = dir_filename_seperate(args.load_ckpt_file)
+        args.load_ckpt_dir = ckpt_dir
+        args.load_ckpt_filename = ckpt_file
 
     args.tmp_dir = cwd + 'data/raw/temp/'
 
@@ -337,8 +356,8 @@ def update_args(args,old_args):
 
     args.arch = rename_arch
     args.block_size = old_args.block_size
-    args.dataloader = old_args.dataloader
-    args.fold = old_args.fold
+    #args.dataloader = old_args.dataloader
+    #args.fold = old_args.fold
     
     args.motif = old_args.motif
     args.motif_pos = old_args.motif_pos
