@@ -15,7 +15,6 @@ puhti_*.sh
 cross_*.sh
 hs37d5_1000GP.fa
 results/
-temp/*
 *.sh
 execute_*.sh/
 *.pyc
