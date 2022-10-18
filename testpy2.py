@@ -1,7 +1,8 @@
 import subprocess
 
 if __name__ == '__main__':
-
+        
+        '''
         subprocess.call("python2 preprocessing/dmm/annotate_mutations_with_gc_content.py \
         -i /mnt/g/experiment/muat/data/raw/temp/00b9d0e6-69dc-4345-bffd-ce32880c8eef.consensus.20160830.somatic.snv_mnv.tsv.gz \
         -o /mnt/g/experiment/muat/data/raw/temp/00b9d0e6-69dc-4345-bffd-ce32880c8eef.consensus.20160830.somatic.snv_mnv.gc.tsv.gz \
@@ -12,8 +13,6 @@ if __name__ == '__main__':
 
         pdb.set_trace()
         
-
-        '''
         # GC content 1 kb windows; ~5 h 10 min
         echo GC content
         /usr/bin/time -v ${SDIR}/annotate_mutations_with_gc_content.py \
@@ -48,6 +47,19 @@ if __name__ == '__main__':
         --annotation ${DDIR}/Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz \
         --ref ${REF}
         '''
+
+        import os
+        from liftover import get_lifter
+        import pdb
+
+        converter = get_lifter('hg38', 'hg19')
+        chrom = '1'
+        pos = 103786442
+        converter[chrom][pos]
+
+        # other synonyms for the lift call
+        converter.convert_coordinate(chrom, pos)
+        
 
 
 

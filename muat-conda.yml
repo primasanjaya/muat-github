@@ -21,3 +21,4 @@ dependencies:
   - bedops
   - gzip
   - perl-io-uncompress-gunzip
+  - ucsc-liftover

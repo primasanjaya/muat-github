@@ -181,7 +181,7 @@ def get_args():
         parser.add_argument('--genomic-tracks', type=str, default=None, 
                             help='Genomic tracks directory')
 
-
+        parser.add_argument('--convert-hg38-hg19',action='store_true', default=False)
 
         #dmm_parser
         parser.add_argument('-v', '--verbose', type=int, help='Try to be more verbose')
@@ -223,8 +223,7 @@ def get_args():
         return args
 
 def execute_annotation(args,only_input_filename):
-    
-    
+
     #gc content
     syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
     -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
@@ -235,6 +234,30 @@ def execute_annotation(args,only_input_filename):
     --verbose'
     subprocess.run(syntax_gc, shell=True)
     os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
+
+    if args.convert_hg38_hg19:
+        from liftover import get_lifter
+        converter = get_lifter('hg38', 'hg19')
+        pd_hg38 = pd.read_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t') 
+        chrom_pos = []
+
+        for i in range(len(pd_hg38)):
+            row = pd_hg38.iloc[i]
+            chrom = row['chrom']
+            pos = row['pos']
+            hg19chrompos = converter.convert_coordinate(chrom, pos)
+            try:
+                chrom = hg19chrompos[0][0][3:]
+            except:
+                pdb.set_trace()
+            pos = hg19chrompos[0][1]
+            chrom_pos.append((chrom,pos))
+        pd_hg19 = pd.DataFrame(chrom_pos)
+        pd_hg19.columns = ['chroms','pos']
+
+        pd_hg38['chrom'] = pd_hg19['chroms']
+        pd_hg38['pos'] = pd_hg19['pos']
+        pd_hg38.to_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t',index=False, compression="gzip")
 
     # Genic regions
     syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
