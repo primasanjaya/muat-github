@@ -161,7 +161,7 @@ def get_args():
         parser.add_argument('--motif-pos-ges', action='store_true', default=False)
         parser.add_argument('--motif-pos-ges-epi', action='store_true', default=False)
 
-        parser.add_argument('--ensamble', action='store_true', default=False)
+        parser.add_argument('--ensemble', action='store_true', default=False)
 
         parser.add_argument('--get-features', action='store_true', default=False)
 
@@ -429,7 +429,7 @@ if __name__ == '__main__':
             predictor.predict(args.get_features,args.input_newdata_dir)
 
 
-        if args.ensamble:
+        if args.ensemble:
 
             args = translate_args(args)
             cmd_preprocess(args)

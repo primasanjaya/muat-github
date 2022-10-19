@@ -30,14 +30,18 @@ chmod 755 preprocessing/dmm/annotate_mutations_with_bed.sh
 python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/motif+position_features.pthx' --output-pred-dir '/path/to/muat/data/raw/output/' --single-pred-vcf --get-features
 ```
 
-* Predicting .vcf file with MuAt ensamble model :
+* Predicting .vcf file with MuAt ensemble model :
 ```
-python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensamble --get-features
+python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensemble --get-features
 ```
 
 * Predicting .vcf file (GRCh38) : *add --convert-hg38-hg19
 ```
-python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensamble --get-features --convert-hg38-hg19
+pip install liftover
+```
+
+```
+python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensemble --get-features --convert-hg38-hg19
 ```
 
 
