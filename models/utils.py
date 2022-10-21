@@ -77,7 +77,7 @@ def get_simplified_dataloader(args,train_val,input_filename):
                                     args = args
                                     )
 
-        if args.ensamble:
+        if args.ensemble:
             dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
                                     data_dir=args.tmp_dir,
                                     mode='testing', 
@@ -269,8 +269,8 @@ def translate_args(args):
     args.output_pred_dir = output_dir
     args.output_pred_filename = outputfile
     '''
-
-    if args.ensamble:
+    
+    if args.ensemble:
         args.load_ckpt_filename = 'new_weight.pthx'
     else:
         ckpt_dir, ckpt_file = dir_filename_seperate(args.load_ckpt_file)
