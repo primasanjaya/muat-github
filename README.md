@@ -36,9 +36,6 @@ python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/fi
 ```
 
 * Predicting .vcf file (GRCh38) : *add --convert-hg38-hg19
-```
-pip install liftover
-```
 
 ```
 python3 main.py --dataloader 'pcawg' --input-file '/path/to/muat/data/raw/vcf/file.vcf' --reference '/path/to/muat/ref/ref' --load-ckpt-dir '/path/to/muat/bestckpt/wgs/ensamble/' --output-pred-dir '/path/to/muat/data/raw/output/' --ensemble --get-features --convert-hg38-hg19

@@ -236,20 +236,25 @@ def execute_annotation(args,only_input_filename):
     os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
 
     if args.convert_hg38_hg19:
-        from liftover import get_lifter
-        converter = get_lifter('hg38', 'hg19')
+        #from liftover import get_lifter
+        #converter = get_lifter('hg38', 'hg19')
+
+        from pyliftover import LiftOver
+
+        #lo = LiftOver('/genomic_tracks/hg38ToHg19.over.chain.gz')
+        #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
+        lo = LiftOver('hg38', 'hg19')
+        
         pd_hg38 = pd.read_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t') 
         chrom_pos = []
 
         for i in range(len(pd_hg38)):
             row = pd_hg38.iloc[i]
-            chrom = row['chrom']
+            chrom = str('chr') + row['chrom']
             pos = row['pos']
-            hg19chrompos = converter.convert_coordinate(chrom, pos)
-            try:
-                chrom = hg19chrompos[0][0][3:]
-            except:
-                pdb.set_trace()
+            #hg19chrompos = converter.convert_coordinate(chrom, pos)
+            hg19chrompos = lo.convert_coordinate(chrom, pos)
+            chrom = hg19chrompos[0][0][3:]
             pos = hg19chrompos[0][1]
             chrom_pos.append((chrom,pos))
         pd_hg19 = pd.DataFrame(chrom_pos)
