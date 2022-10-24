@@ -234,14 +234,13 @@ def execute_annotation(args,only_input_filename):
     --verbose'
     subprocess.run(syntax_gc, shell=True)
     os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
+    
+    #pdb.set_trace()
 
     if args.convert_hg38_hg19:
-        #from liftover import get_lifter
-        #converter = get_lifter('hg38', 'hg19')
-
         from pyliftover import LiftOver
 
-        #lo = LiftOver('/genomic_tracks/hg38ToHg19.over.chain.gz')
+        #lo = LiftOver('/mnt/g/experiment/redo_muat/muat-github/preprocessing/genomic_tracks/hg38ToHg19.over.chain.gz')
         #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
         lo = LiftOver('hg38', 'hg19')
         
@@ -249,19 +248,25 @@ def execute_annotation(args,only_input_filename):
         chrom_pos = []
 
         for i in range(len(pd_hg38)):
-            row = pd_hg38.iloc[i]
-            chrom = str('chr') + row['chrom']
-            pos = row['pos']
-            #hg19chrompos = converter.convert_coordinate(chrom, pos)
-            hg19chrompos = lo.convert_coordinate(chrom, pos)
-            chrom = hg19chrompos[0][0][3:]
-            pos = hg19chrompos[0][1]
-            chrom_pos.append((chrom,pos))
-        pd_hg19 = pd.DataFrame(chrom_pos)
-        pd_hg19.columns = ['chroms','pos']
+            try:
+                row = pd_hg38.iloc[i]
+                chrom = str('chr') + str(row['chrom'])
+                pos = row['pos']
+                ref = row['ref']
+                alt = row['alt']
+                sample = row['sample']
+                seq = row['seq']
+                gc1kb = row['gc1kb']
+                hg19chrompos = lo.convert_coordinate(chrom, pos)
+                chrom = hg19chrompos[0][0][3:]
+                pos = hg19chrompos[0][1]
 
-        pd_hg38['chrom'] = pd_hg19['chroms']
-        pd_hg38['pos'] = pd_hg19['pos']
+                chrom_pos.append((chrom,pos,ref,alt,sample,seq,gc1kb))
+            except:
+                pass
+        pd_hg19 = pd.DataFrame(chrom_pos)
+        pd_hg19.columns = pd_hg38.columns.tolist()
+
         pd_hg38.to_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t',index=False, compression="gzip")
 
     # Genic regions
@@ -438,6 +443,7 @@ if __name__ == '__main__':
 
             args = translate_args(args)
             cmd_preprocess(args)
+            #pdb.set_trace()
 
             only_input_filename = args.input_filename[:-4]
             execute_annotation(args,only_input_filename)

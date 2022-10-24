@@ -233,7 +233,7 @@ def get_context(v, prev_buf, next_buf, ref_genome,
         elif v2.vtype == Variant.DEL:
             for i, dc in enumerate(v2.ref):
 #                    print 'DEL', i, dc, mutation_code[r2[i + 1]]['-']
-                seq[tp] = mutation_code[dc]['-']
+                seq[int(tp)] = mutation_code[dc]['-']
                 tp += 1
                 if tp == len(seq):
                     break
@@ -241,7 +241,11 @@ def get_context(v, prev_buf, next_buf, ref_genome,
 #                    print 'ADJ, del', fpos, (len(r2) - 1) / 2
                 fpos += len(v2.ref) / 2  # adjust to the deletion midpoint
         elif v2.vtype == Variant.INS:
-            seq[tp] = seq[tp] + ''.join([mutation_code['-'][ic] for ic in v2.alt])
+            
+            #seq[tp] = seq[tp] + ''.join([mutation_code['-'][ic] for ic in v2.alt]) 
+            seq[int(tp)] = seq[int(tp)] + ''.join([mutation_code['-'][ic] for ic in v2.alt])
+            #pdb.set_trace()
+
             if v2.pos < v.pos:      # adjust to the insertion midpoint
                 # v2 is before focal variant - increment position by insertion length
                 fpos += len(v2.alt)
@@ -254,22 +258,25 @@ def get_context(v, prev_buf, next_buf, ref_genome,
                 if len(m) + tp >= len(seq):  # too long allele to fit into the context; increase context length
                     return None
                 for i in range(len(m)):  # insert mutation sequence into original
-                    seq[tp] = m[i]
+                    seq[int(tp)] = m[i]
                     tp += 1
                 n_bp_diff = len(v2.alt) - len(v2.ref)
                 if n_bp_diff > 0: # inserted bases? add to the end of the block, insertions are unrolled below
-                    seq[tp - 1] = seq[tp - 1] + ''.join(v2.alt[len(v2.ref):])
+                    seq[int(tp - 1)] = seq[int(tp - 1)] + ''.join(v2.alt[len(v2.ref):])
                 # we need to adjust the midpoint according to whether block is before or at the current midpoint
                 if v2.pos < v.pos:
                     fpos += max(0, n_bp_diff)
                 elif v2.pos == v.pos:
                     fpos += (len(m) - 1) / 2
         elif v2.vtype in Variant.MEI_TYPES:
-            seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
+            #seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
+            seq[int(tp)] = seq[int(tp)] + mutation_code['-'][v2.vtype]
+
             if v2.pos <= v.pos:  # handle SV breakpoints as insertions
                 fpos += 1
         elif v2.vtype in Variant.SV_TYPES:
-            seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
+            #seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
+            seq[int(tp)] = seq[int(tp)] + mutation_code['-'][v2.vtype]
             if v2.pos <= v.pos:  # handle SV breakpoints as insertions
                 fpos += 1
         elif v2.vtype == Variant.NOM:
@@ -405,7 +412,12 @@ class VCFReader(VariantReader):
                 self.eof = True
                 return Variant(chrom=VariantReader.EOF, pos=0, ref='N', alt='N')
             v = v.rstrip('\n').split('\t')
+            #pdb.set_trace()
             chrom, pos, ref, alt, flt, info = v[0], int(v[1]), v[3], v[4], v[6], v[7]
+            if chrom[0:3]=='chr':
+                chrom = chrom[3:]
+            #pdb.set_trace()
+
             self.update_pos(None, chrom, pos)
             if self.pass_only and flt not in VCFReader.FILTER_PASS:
                 self.n_flt += 1
