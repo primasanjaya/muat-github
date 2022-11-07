@@ -453,28 +453,26 @@ if __name__ == '__main__':
             if torch.cuda.is_available():
                 device = torch.cuda.current_device()
 
-            all_folder = ['finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold2_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold3_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold4_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3',
-                        'finalpcawgFeaturefold5_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold6_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold7_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne256_cl3',
-                        'finalpcawgFeaturefold8_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3',
-                        'finalpcawgFeaturefold9_11110_wpos_TripletPositionF_bs5000_nl1_nh2_ne128_cl3',
-                        'finalpcawgFeaturefold10_11110_wpos_TripletPositionF_bs5000_nl1_nh1_ne256_cl3']
+            all_folder = os.listdir(args.load_ckpt_dir)
             
             args.single_pred_vcf = True #carefull this is used in args.single pred. will be called twice if this is put above single_pred vcf
+            
             for i in range(len(all_folder)):
 
-                folder1 = all_folder[i]
-                args.output_prefix = 'model' + str(i+1)
-                
-                #load ckpt
-                if device == 'cpu':
-                    allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename,map_location=device)
-                else:
-                    allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename)
+                try:
+                    folder1 = all_folder[i]
+                    splitfold = folder1.split('fold')
+                    #pdb.set_trace()
+                    splitfold = splitfold[1].split('_')
+                    fold = int(splitfold[0])
+                    args.output_prefix = 'model' + str(fold)
+                    #load ckpt
+                    if device == 'cpu':
+                        allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename,map_location=device)
+                    else:
+                        allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename)
+                except:
+                    print('can not load ckpt, plesae check the ckpt directory')
 
                 #check weight
                 #pdb.set_trace()

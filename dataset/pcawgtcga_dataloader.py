@@ -201,14 +201,14 @@ class TCGAPCAWG_Dataloader(Dataset):
         vocabsize = 0
         if self.NiSi:
             vocabsize = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='NiSi'])
-            if self.SNV:
-                vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='SNV'])
-                if self.indel:
-                    vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='indel'])                   
-                    if self.SVMEI:
-                        vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ'].isin(['MEI','SV'])])
-                        if self.Normal:
-                            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='Normal'])
+        if self.SNV:
+            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='SNV'])
+        if self.indel:
+            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='indel'])                   
+        if self.SVMEI:
+            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ'].isin(['MEI','SV'])])
+        if self.Normal:
+            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='Normal'])
 
         self.vocab_size = vocabsize + 1
         #print(self.vocab_size)

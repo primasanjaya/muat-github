@@ -148,24 +148,27 @@ class Predictor:
                         print('Error: Can not export the results, please specify --output-pred-dir')
                     
                     if predictvis:
-                        features = model(x_all, y,vis=predictvis)
-                        features = features.detach().cpu().numpy()[0]
-
-                        pd_cpu_features = pd.DataFrame(features).T
-
-                        featurecolumn = []
-                        count = 0
-
-                        for i in range(len(pd_cpu_features.columns)):
-                            count = count + 1
-                            featurecolumn.append('M' + str(count))
-
-                        pd_cpu_features.columns = featurecolumn
-
                         try:
-                            pd_cpu_features.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_features.tsv',sep='\t')
+                            features = model(x_all, y,vis=predictvis)
+                            features = features.detach().cpu().numpy()[0]
+
+                            pd_cpu_features = pd.DataFrame(features).T
+
+                            featurecolumn = []
+                            count = 0
+
+                            for i in range(len(pd_cpu_features.columns)):
+                                count = count + 1
+                                featurecolumn.append('M' + str(count))
+
+                            pd_cpu_features.columns = featurecolumn
+
+                            try:
+                                pd_cpu_features.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_features.tsv',sep='\t')
+                            except:
+                                print('Error: Can not export the results, please specify --output-pred-dir')  
                         except:
-                            print('Error: Can not export the results, please specify --output-pred-dir')    
+                            pass
                 
     def predict_core(self,predictvis,adddata_dir):
         model, config = self.model, self.config

@@ -35,3 +35,7 @@ test.txt
 testpy2.py
 ref/ref
 *.DS_store
+bestckpt/wgs/snv/*
+bestckpt/wgs/snv_mnv_indel_pos/*
+bestckpt/wgs/snv_mnv_indel_pos/ensemble.zip
+

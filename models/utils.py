@@ -314,9 +314,10 @@ def simplified_args(args):
         args.mutratio = '0.3-0.3-0.2-0.2-0'
     elif args.mut_type == 'SNV+MNV+indel+SV/MEI+Neg':
         args.mutratio = '0.25-0.25-0.25-0.15-0.1'
+    elif args.mut_type == 'SNV+indel':
+        args.mutratio = '0.5-0-0.5-0-0'
     else:
-        print('None of the option : SNV+MNV+indel+SV/MEI+Neg')
-
+        print('mutation type is empty, set --mut-type ')
     return args
 
 def solving_arch(args):
