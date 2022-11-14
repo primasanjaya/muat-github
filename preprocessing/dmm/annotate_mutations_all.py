@@ -12,6 +12,16 @@ import shutil
 dna_comp = {'A' : 'T', 'C' : 'G', 'G' : 'C', 'T' : 'A',
             'N' : 'N', '-' : '-', '+' : '+'}
 
+try:
+    import swalign
+    align_scoring = swalign.NucleotideScoringMatrix(2, -1)
+    aligner = swalign.LocalAlignment(align_scoring, globalalign=True)
+    support_complex = True
+except:
+    sys.stderr.write('Warning: module swalign not installed: complex variants ignored\n')
+    sys.stderr.write('To install swalign: pip install swalign\n')
+    support_complex = False
+
 def dna_comp_default(x):
     r = dna_comp.get(x)
     return r if r is not None else x
@@ -888,11 +898,9 @@ def func_annotate_mutation_all(args):
             os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz')
-        except:
+        except Exception as e:
+            print(e)
             pass
-
-        
-
 
     
 
