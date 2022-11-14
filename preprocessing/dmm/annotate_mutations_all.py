@@ -903,7 +903,7 @@ def func_annotate_mutation_all(args):
         except Exception as e:
             print(e)
             all_error_file.append(fn)
-            pass´
+            pass
     pd_all_error_file = pd.DataFrame(all_error_file)
     pd_all_error_file.columns = ['path']
     pd_all_error_file.to_csv(args.tmp_dir + 'error_file.tsv',sep='\t')
