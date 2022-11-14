@@ -24,65 +24,69 @@ def preprocessing_fromdmm_all(args):
     fns  = pd.read_csv(args.predict_filepath,sep='\t',index_col=0)['path'].to_list()
 
     for i in range(len(fns)):
-        fn = fns[i]
-        get_ext = fn[-4:]
-        if get_ext == '.vcf':
-            sample_name = fn[:-4]
-        else:
-            sample_name = fn[:-7]
 
-        filename = sample_name.split('/')
-        filename = filename[-1]
+        try:
+            fn = fns[i]
+            get_ext = fn[-4:]
+            if get_ext == '.vcf':
+                sample_name = fn[:-4]
+            else:
+                sample_name = fn[:-7]
 
-        #pdb.set_trace()
+            filename = sample_name.split('/')
+            filename = filename[-1]
 
-        readfile = filename + '.gc.genic.exonic.cs.tsv.gz'
-        #pdb.set_trace()
+            #pdb.set_trace()
 
-        pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t')
+            readfile = filename + '.gc.genic.exonic.cs.tsv.gz'
+            #pdb.set_trace()
 
-        ps = (pd_data['pos'] / 1000000).apply(np.floor).astype(int).astype(str)
+            pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t')
 
-        chrom = pd_data['chrom'].astype(str)
+            ps = (pd_data['pos'] / 1000000).apply(np.floor).astype(int).astype(str)
 
-        chrompos = chrom + '_' + ps
+            chrom = pd_data['chrom'].astype(str)
 
-        pd_data['chrompos'] = chrompos
+            chrompos = chrom + '_' + ps
 
-        pd_data['ges'] = pd_data['genic'].astype(str) + '_' + pd_data['exonic'].astype(str) + '_' + pd_data['strand'].astype(str)
+            pd_data['chrompos'] = chrompos
 
-        mergetriplet = pd_data.merge(dictMutation, left_on='seq', right_on='triplet', how='left')
-        mergeges = mergetriplet.merge(dictGES, left_on='ges', right_on='ges', how='left')
-        mergeges = mergeges.rename(columns={"token": "gestoken"})
-        mergechrompos = mergeges.merge(dictChpos, left_on='chrompos', right_on='chrompos', how='left')
-        mergechrompos = mergechrompos.rename(columns={"token": "postoken"})
+            pd_data['ges'] = pd_data['genic'].astype(str) + '_' + pd_data['exonic'].astype(str) + '_' + pd_data['strand'].astype(str)
 
-        mergeAlltoken =  mergechrompos[['triplettoken', 'postoken','gestoken','gc1kb','mut_type']]
-        mergeAlltoken = mergeAlltoken.rename(columns={"mut_type" : "type"})
+            mergetriplet = pd_data.merge(dictMutation, left_on='seq', right_on='triplet', how='left')
+            mergeges = mergetriplet.merge(dictGES, left_on='ges', right_on='ges', how='left')
+            mergeges = mergeges.rename(columns={"token": "gestoken"})
+            mergechrompos = mergeges.merge(dictChpos, left_on='chrompos', right_on='chrompos', how='left')
+            mergechrompos = mergechrompos.rename(columns={"token": "postoken"})
 
-        NiSionly = mergeAlltoken.loc[mergeAlltoken['type']=='SNV']
-        NiSionly = NiSionly.drop(columns=['type'])
+            mergeAlltoken =  mergechrompos[['triplettoken', 'postoken','gestoken','gc1kb','mut_type']]
+            mergeAlltoken = mergeAlltoken.rename(columns={"mut_type" : "type"})
 
-        SNVonly = mergeAlltoken.loc[mergeAlltoken['type']=='MNV']
-        SNVonly = SNVonly.drop(columns=['type'])
+            NiSionly = mergeAlltoken.loc[mergeAlltoken['type']=='SNV']
+            NiSionly = NiSionly.drop(columns=['type'])
 
-        indelonly = mergeAlltoken.loc[mergeAlltoken['type']=='indel']
-        indelonly = indelonly.drop(columns=['type'])
+            SNVonly = mergeAlltoken.loc[mergeAlltoken['type']=='MNV']
+            SNVonly = SNVonly.drop(columns=['type'])
 
-        MEISVonly = mergeAlltoken.loc[mergeAlltoken['type'].isin(['MEI','SV'])]
+            indelonly = mergeAlltoken.loc[mergeAlltoken['type']=='indel']
+            indelonly = indelonly.drop(columns=['type'])
 
-        Normalonly = mergeAlltoken.loc[mergeAlltoken['type']=='Neg']
-        Normalonly = Normalonly.drop(columns=['type'])
+            MEISVonly = mergeAlltoken.loc[mergeAlltoken['type'].isin(['MEI','SV'])]
 
-        NiSionly.to_csv(args.tmp_dir + 'SNV_' + filename + '.csv')
-        SNVonly.to_csv(args.tmp_dir + 'MNV_' + filename + '.csv')
-        indelonly.to_csv(args.tmp_dir + 'indel_' + filename + '.csv')
-        MEISVonly.to_csv(args.tmp_dir + 'MEISV_' + filename + '.csv')
-        Normalonly.to_csv(args.tmp_dir + 'Neg_' + filename + '.csv')
+            Normalonly = mergeAlltoken.loc[mergeAlltoken['type']=='Neg']
+            Normalonly = Normalonly.drop(columns=['type'])
 
-        pd_count = pd.DataFrame([len(NiSionly),len(SNVonly),len(indelonly),len(MEISVonly),len(Normalonly)])
+            NiSionly.to_csv(args.tmp_dir + 'SNV_' + filename + '.csv')
+            SNVonly.to_csv(args.tmp_dir + 'MNV_' + filename + '.csv')
+            indelonly.to_csv(args.tmp_dir + 'indel_' + filename + '.csv')
+            MEISVonly.to_csv(args.tmp_dir + 'MEISV_' + filename + '.csv')
+            Normalonly.to_csv(args.tmp_dir + 'Neg_' + filename + '.csv')
 
-        pd_count.to_csv(args.tmp_dir + 'count_' + filename + '.csv')
+            pd_count = pd.DataFrame([len(NiSionly),len(SNVonly),len(indelonly),len(MEISVonly),len(Normalonly)])
+
+            pd_count.to_csv(args.tmp_dir + 'count_' + filename + '.csv')
+        except:
+            pass
 
 def preprocessing_fromdmm(args):
 

@@ -899,14 +899,21 @@ def func_annotate_mutation_all(args):
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz')
             all_succeed_file.append(fn)
+
+            #if i == 1:
+            #    os.remove(args.tmp_dir + sample_name + '.gc.genic.exonic.cs.tsv.gz')
+            #    all_error_file.append(fn)
+
         except Exception as e:
             print(e)
             all_error_file.append(fn)
             pass
-    pd_all_error_file = pd.DataFrame(all_error_file)
-    pd_all_error_file.columns = ['path']
-    pd_all_error_file.to_csv(args.tmp_dir + 'error_file.tsv',sep='\t')
+    if len(all_error_file)>0:
+        pd_all_error_file = pd.DataFrame(all_error_file)
+        pd_all_error_file.columns = ['path']
+        pd_all_error_file.to_csv(args.tmp_dir + 'error_file.tsv',sep='\t')
 
-    pd_all_succeed_file = pd.DataFrame(all_succeed_file)
-    pd_all_succeed_file.columns = ['path']
-    pd_all_succeed_file.to_csv(args.tmp_dir + 'succeed_file.tsv',sep='\t')
+    if len(all_succeed_file)>0:
+        pd_all_succeed_file = pd.DataFrame(all_succeed_file)
+        pd_all_succeed_file.columns = ['path']
+        pd_all_succeed_file.to_csv(args.tmp_dir + 'succeed_file.tsv',sep='\t')
