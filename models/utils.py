@@ -272,7 +272,9 @@ def common_translate_args(args):
     args.cwd = cwd
 
     args.mutation_coding = cwd + 'extfile/mutation_codes_sv.tsv'
-    args.tmp_dir = cwd + 'data/raw/temp/'
+
+    if args.tmp_dir is None:
+        args.tmp_dir = cwd + 'data/raw/temp/'
 
     if args.predict_all:
         pass
