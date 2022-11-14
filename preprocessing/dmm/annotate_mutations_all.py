@@ -653,6 +653,8 @@ def func_annotate_mutation_all(args):
     except:
         pass
 
+    all_error_file = []
+
     for i, fn in enumerate(fns):
         try:
             get_ext = fn[-4:]
@@ -900,10 +902,8 @@ def func_annotate_mutation_all(args):
             os.remove(args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz')
         except Exception as e:
             print(e)
-            pass
-
-    
-
-
-
-
+            all_error_file.append(fn)
+            pass´
+    pd_all_error_file = pd.DataFrame(all_error_file)
+    pd_all_error_file.columns = ['path']
+    pd_all_error_file.to_csv(args.tmp_dir + 'error_file.tsv',sep='\t')
