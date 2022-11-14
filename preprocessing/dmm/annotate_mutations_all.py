@@ -7,6 +7,7 @@ import pdb
 import numpy as np
 import os
 import pandas as pd
+import shutil
 
 dna_comp = {'A' : 'T', 'C' : 'G', 'G' : 'C', 'T' : 'A',
             'N' : 'N', '-' : '-', '+' : '+'}
@@ -550,10 +551,18 @@ def get_reader(f, args, type_snvs=False):
     return vr
 
 
-def open_stream(fn):
+def open_stream(args,fn):
     if fn.endswith('.gz'):
-        f = gzip.open(fn)
-        sample_name = os.path.basename(fn).split('.')[0]
+        #f = gzip.open(fn)
+        #sample_name = os.path.basename(fn).split('.')[0]
+        sample_name = os.path.basename(fn).split('/')[0]
+        sample_name = sample_name[:-7]
+
+        with gzip.open(fn, 'rb') as f_in:
+            with open(args.tmp_dir + sample_name + '.vcf', 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        f = open(args.tmp_dir + sample_name + '.vcf')
     else:
         f = open(fn)
         sample_name = os.path.basename(fn).split('.')[0]
@@ -636,7 +645,11 @@ def func_annotate_mutation_all(args):
 
     for i, fn in enumerate(fns):
         try:
-            sample_name = fn[:-4]
+            get_ext = fn[-4:]
+            if get_ext == '.vcf':
+                sample_name = fn[:-4]
+            else:
+                sample_name = fn[:-7]
             #pdb.set_trace()
             sample_name = sample_name.split('/')
             sample_name = sample_name[-1]
@@ -644,7 +657,7 @@ def func_annotate_mutation_all(args):
             output_file = args.tmp_dir + sample_name + '.tsv.gz'
             o = gzip.open(output_file, 'wt')
 
-            f, sample_name_2 = open_stream(fn)
+            f, sample_name_2 = open_stream(args,fn)
 
             digits = int(np.ceil(np.log10(len(fns))))
             fmt = '{:' + str(digits) + 'd}/{:' + str(digits) + 'd} {}: '
@@ -869,6 +882,8 @@ def func_annotate_mutation_all(args):
             o.flush()
             o.close()
 
+            #pdb.set_trace()
+            os.remove(args.tmp_dir + sample_name + '.vcf')
             os.remove(args.tmp_dir + sample_name + '.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')

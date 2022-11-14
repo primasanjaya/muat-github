@@ -109,7 +109,13 @@ class TCGAPCAWG_Dataloader(Dataset):
 
                 for idx in range(len(fns)):
                     va = fns[idx]
-                    sample_name = va[:-4]  
+
+                    get_ext = va[-4:]
+                    if get_ext == '.vcf':
+                        sample_name = va[:-4]
+                    else:
+                        sample_name = va[:-7]
+                        
                     filename = sample_name.split('/')
                     filename = filename[-1]
                     onetup = (filename,'',1,1)
