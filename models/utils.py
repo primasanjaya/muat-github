@@ -78,7 +78,8 @@ def get_simplified_dataloader(args,train_val,input_filename):
                                     )
 
         if args.ensemble:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
+            if args.predict_all:
+                dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
                                     data_dir=args.tmp_dir,
                                     mode='testing', 
                                     curr_fold=args.fold, 
@@ -87,9 +88,23 @@ def get_simplified_dataloader(args,train_val,input_filename):
                                     addtriplettoken=args.motif,
                                     addpostoken=args.motif_pos,
                                     addgestoken=args.motif_pos_ges,
-                                    input_filename = input_filename,
+                                    input_filename = None,
                                     args = args
                                     )
+
+            else:
+                dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
+                                        data_dir=args.tmp_dir,
+                                        mode='testing', 
+                                        curr_fold=args.fold, 
+                                        block_size=args.block_size, 
+                                        mutratio = args.mutratio,
+                                        addtriplettoken=args.motif,
+                                        addpostoken=args.motif_pos,
+                                        addgestoken=args.motif_pos_ges,
+                                        input_filename = input_filename,
+                                        args = args
+                                        )
 
         if args.train:
             dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
@@ -252,18 +267,22 @@ def dir_filename_seperate(fullfile):
 
     return dirfol,filename
 
-def translate_args(args):
-
+def common_translate_args(args):
     cwd = ensure_path(os.getcwd())
     args.cwd = cwd
 
     args.mutation_coding = cwd + 'extfile/mutation_codes_sv.tsv'
+    args.tmp_dir = cwd + 'data/raw/temp/'
 
-    input_dir, inputfile = dir_filename_seperate(args.input_file)
-    args.input_data_dir = input_dir
-    args.input_filename = inputfile
-    args.input = args.input_data_dir + args.input_filename
-
+    if args.predict_all:
+        pass
+    else:
+        input_dir, inputfile = dir_filename_seperate(args.input_file)
+        args.input_data_dir = input_dir
+        args.input_filename = inputfile
+        args.input = args.input_data_dir + args.input_filename
+        filename = strip_suffixes(args.input_filename, ['.vcf'])
+        args.output = args.tmp_dir + filename + '.tsv.gz'
     '''
     output_dir, outputfile = dir_filename_seperate(args.output_pred_file)
     args.output_pred_dir = output_dir
@@ -277,12 +296,6 @@ def translate_args(args):
         args.load_ckpt_dir = ckpt_dir
         args.load_ckpt_filename = ckpt_file
 
-    args.tmp_dir = cwd + 'data/raw/temp/'
-
-    filename = strip_suffixes(args.input_filename, ['.vcf'])
-
-    args.output = args.tmp_dir + filename + '.tsv.gz'
-
     args.reference = ensure_filepath(args.reference)
     args.context = 8
     args.sample_id = 'submitted_sample_id'
@@ -293,7 +306,9 @@ def translate_args(args):
     args.tmp = args.tmp_dir
 
     args.genomic_tracks = args.cwd + 'preprocessing/genomic_tracks/h37/'
-
+    return args
+def translate_args(args):
+    args = common_translate_args(args)
     return args
 
 def simplified_args(args):

@@ -66,6 +66,7 @@ def main(args):
                 sys.exit(1)
         prev_pos = pos
         ref, alt = v[3], v[4]
+        #pdb.set_trace()
         base = reference[chrom][pos]
         if n_pos > 0:
             if n_neg > 0:

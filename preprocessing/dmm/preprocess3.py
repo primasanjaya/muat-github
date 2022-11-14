@@ -916,6 +916,7 @@ def preprocess(args):
     if n_missing > 0:
         sys.exit(1)
     status('{} input files found'.format(len(fns)), args)
+    #pdb.set_trace()
     if len(fns) == 0:
         sys.exit(1)
 

@@ -101,9 +101,22 @@ class TCGAPCAWG_Dataloader(Dataset):
                 onetup = [(self.onlyfilename,'',1,1)]
                 self.validation_fold = pd.DataFrame(onetup,columns =['samples', 'nm_class', 'slices','fold'])
                 self.test_fold = self.validation_fold
-                
                 self.newformat = True
 
+            if self.args.predict_all:
+                fulltuple = []
+                fns = pd.read_csv(args.predict_filepath,sep='\t',index_col=0)['path'].to_list()
+
+                for idx in range(len(fns)):
+                    va = fns[idx]
+                    sample_name = va[:-4]  
+                    filename = sample_name.split('/')
+                    filename = filename[-1]
+                    onetup = (filename,'',1,1)
+                    fulltuple.append(onetup)
+                self.validation_fold = pd.DataFrame(fulltuple,columns =['samples', 'nm_class', 'slices','fold'])
+                self.test_fold = self.validation_fold
+                self.newformat = True
 
             '''
             else:
