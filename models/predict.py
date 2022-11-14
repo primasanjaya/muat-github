@@ -98,77 +98,80 @@ class Predictor:
 
             #pdb.set_trace()
             for it in range(0,len(loader)):
-                loader.block_size = self.config.args.block_size
+                try:
+                    loader.block_size = self.config.args.block_size
 
-                npx,npy = loader.__getitem__(it)
+                    npx,npy = loader.__getitem__(it)
 
-                #print(str(it + 1) + ' ' + str(npx[0]) + str(npy))
+                    #print(str(it + 1) + ' ' + str(npx[0]) + str(npy))
 
-                # place data on the correct device
-                x_all = []
-                for i in range(len(npx[1])):
-                    xi = npx[1][i].to(self.device)
-                    xi = xi.unsqueeze(0)
-                    x_all.append(xi.to(self.device))
-                    
-                if npy == '':
-                    y = None
-                else:
-                    y = npy.to(self.device)
-                    y = y.unsqueeze(0)
-
-                with torch.set_grad_enabled(is_train):
-
-                    try:
-                        logits, loss = model(x_all)
-                    except:
-                        pdb.set_trace()
-
-                    _, predicted = torch.max(logits.data, 1)
-                    predicted = predicted.detach().cpu().numpy()[0]
-
-                    cpu_prob = logits.detach().cpu().numpy()[0]
-
-                    pd_cpu_prob = pd.DataFrame(cpu_prob).T
-
-                    pd_cpu_prob.columns = self.class_handler['class_name'].to_list()
-                    
-                    class_name = loader.pd_class_info.loc[loader.pd_class_info['class_index']==predicted]['class_name'].values[0]
-                    pd_cpu_prob['prediction'] = class_name
-                    print(npx[0][:-4] + '.vcf is predicted as ' + str(class_name))
-
-                    if self.config.args.output_prefix == None:
-                        prefix = ''
+                    # place data on the correct device
+                    x_all = []
+                    for i in range(len(npx[1])):
+                        xi = npx[1][i].to(self.device)
+                        xi = xi.unsqueeze(0)
+                        x_all.append(xi.to(self.device))
+                        
+                    if npy == '':
+                        y = None
                     else:
-                        prefix = self.config.args.output_prefix + '_'
-                
-                    try:
-                        pd_cpu_prob.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_probability.tsv',sep='\t')
-                    except:
-                        print('Error: Can not export the results, please specify --output-pred-dir')
-                    
-                    if predictvis:
+                        y = npy.to(self.device)
+                        y = y.unsqueeze(0)
+
+                    with torch.set_grad_enabled(is_train):
+
                         try:
-                            features = model(x_all, y,vis=predictvis)
-                            features = features.detach().cpu().numpy()[0]
-
-                            pd_cpu_features = pd.DataFrame(features).T
-
-                            featurecolumn = []
-                            count = 0
-
-                            for i in range(len(pd_cpu_features.columns)):
-                                count = count + 1
-                                featurecolumn.append('M' + str(count))
-
-                            pd_cpu_features.columns = featurecolumn
-
-                            try:
-                                pd_cpu_features.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_features.tsv',sep='\t')
-                            except:
-                                print('Error: Can not export the results, please specify --output-pred-dir')  
+                            logits, loss = model(x_all)
                         except:
-                            pass
+                            pdb.set_trace()
+
+                        _, predicted = torch.max(logits.data, 1)
+                        predicted = predicted.detach().cpu().numpy()[0]
+
+                        cpu_prob = logits.detach().cpu().numpy()[0]
+
+                        pd_cpu_prob = pd.DataFrame(cpu_prob).T
+
+                        pd_cpu_prob.columns = self.class_handler['class_name'].to_list()
+                        
+                        class_name = loader.pd_class_info.loc[loader.pd_class_info['class_index']==predicted]['class_name'].values[0]
+                        pd_cpu_prob['prediction'] = class_name
+                        print(npx[0][:-4] + '.vcf is predicted as ' + str(class_name))
+
+                        if self.config.args.output_prefix == None:
+                            prefix = ''
+                        else:
+                            prefix = self.config.args.output_prefix + '_'
+                    
+                        try:
+                            pd_cpu_prob.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_probability.tsv',sep='\t')
+                        except:
+                            print('Error: Can not export the results, please specify --output-pred-dir')
+                        
+                        if predictvis:
+                            try:
+                                features = model(x_all, y,vis=predictvis)
+                                features = features.detach().cpu().numpy()[0]
+
+                                pd_cpu_features = pd.DataFrame(features).T
+
+                                featurecolumn = []
+                                count = 0
+
+                                for i in range(len(pd_cpu_features.columns)):
+                                    count = count + 1
+                                    featurecolumn.append('M' + str(count))
+
+                                pd_cpu_features.columns = featurecolumn
+
+                                try:
+                                    pd_cpu_features.to_csv(self.config.args.output_pred_dir + prefix + npx[0][:-4] + '_features.tsv',sep='\t')
+                                except:
+                                    print('Error: Can not export the results, please specify --output-pred-dir')  
+                            except:
+                                pass
+                except:
+                    pass
                 
     def predict_core(self,predictvis,adddata_dir):
         model, config = self.model, self.config

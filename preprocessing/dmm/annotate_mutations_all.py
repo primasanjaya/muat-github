@@ -654,7 +654,7 @@ def func_annotate_mutation_all(args):
         pass
 
     all_error_file = []
-
+    all_succeed_file = []
     for i, fn in enumerate(fns):
         try:
             get_ext = fn[-4:]
@@ -810,8 +810,6 @@ def func_annotate_mutation_all(args):
             '''
 
             #pdb.set_trace()        
-
-
             
             output_cs = args.tmp_dir + sample_name + '.gc.genic.exonic.cs.tsv.gz'
             annotation = args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz'
@@ -900,6 +898,7 @@ def func_annotate_mutation_all(args):
             os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz')
+            all_succeed_file.append(fn)
         except Exception as e:
             print(e)
             all_error_file.append(fn)
@@ -907,3 +906,7 @@ def func_annotate_mutation_all(args):
     pd_all_error_file = pd.DataFrame(all_error_file)
     pd_all_error_file.columns = ['path']
     pd_all_error_file.to_csv(args.tmp_dir + 'error_file.tsv',sep='\t')
+
+    pd_all_succeed_file = pd.DataFrame(all_succeed_file)
+    pd_all_succeed_file.columns = ['path']
+    pd_all_succeed_file.to_csv(args.tmp_dir + 'succeed_file.tsv',sep='\t')
