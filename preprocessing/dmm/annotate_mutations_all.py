@@ -780,6 +780,39 @@ def func_annotate_mutation_all(args):
                         then = now
             o.close()
 
+
+            if args.convert_hg38_hg19:
+                from pyliftover import LiftOver
+
+                #lo = LiftOver('/mnt/g/experiment/redo_muat/muat-github/preprocessing/genomic_tracks/hg38ToHg19.over.chain.gz')
+                #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
+                lo = LiftOver('hg38', 'hg19')
+                
+                pd_hg38 = pd.read_csv(args.tmp_dir + sample_name + '.gc.tsv.gz',sep='\t') 
+                chrom_pos = []
+
+                for i in range(len(pd_hg38)):
+                    try:
+                        row = pd_hg38.iloc[i]
+                        chrom = str('chr') + str(row['chrom'])
+                        pos = row['pos']
+                        ref = row['ref']
+                        alt = row['alt']
+                        sample = row['sample']
+                        seq = row['seq']
+                        gc1kb = row['gc1kb']
+                        hg19chrompos = lo.convert_coordinate(chrom, pos)
+                        chrom = hg19chrompos[0][0][3:]
+                        pos = hg19chrompos[0][1]
+
+                        chrom_pos.append((chrom,pos,ref,alt,sample,seq,gc1kb))
+                    except:
+                        pass
+                pd_hg19 = pd.DataFrame(chrom_pos)
+                pd_hg19.columns = pd_hg38.columns.tolist()
+
+                pd_hg38.to_csv(args.tmp_dir + sample_name + '.gc.tsv.gz',sep='\t',index=False, compression="gzip")
+
             # Genic regions
             output_genic = args.tmp_dir + sample_name + '.gc.genic.tsv.gz'
 
@@ -896,7 +929,10 @@ def func_annotate_mutation_all(args):
             o.close()
 
             #pdb.set_trace()
-            os.remove(args.tmp_dir + sample_name + '.vcf')
+            try:
+                os.remove(args.tmp_dir + sample_name + '.vcf')
+            except:
+                pass
             os.remove(args.tmp_dir + sample_name + '.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
