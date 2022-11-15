@@ -204,6 +204,9 @@ def get_args():
                                 help='Either a directory with vcf/maf[.gz] files or a vcf/maf[.gz] file (-i may be given more than once)')
         parser.add_argument('-o', '--output', metavar='fn', help='Preprocessed mutation data')
         parser.add_argument('-r', '--reference', metavar='ref', help='Reference genome (fasta) [{}]')
+        parser.add_argument('-re', '--reference-h19', metavar='ref', help='Reference genome (fasta) [{}]')
+        parser.add_argument('-rt', '--reference-h38', metavar='ref', help='Reference genome (fasta) [{}]')
+
         parser.add_argument('-k', '--context', help='Sequence context length (power of 2) [{}]', metavar='bp', type=int,default=8)
         parser.add_argument('-e', '--errors', metavar='fn',
                                 help='File where to log errors [{}]')
@@ -242,7 +245,7 @@ def execute_annotation(args,only_input_filename):
     subprocess.run(syntax_gc, shell=True)
     os.remove(args.tmp_dir + only_input_filename + '.tsv.gz')
     
-    #pdb.set_trace()
+    pdb.set_trace()
 
     if args.convert_hg38_hg19:
         from pyliftover import LiftOver
@@ -512,7 +515,7 @@ if __name__ == '__main__':
 
                     predictor = Predictor(model, None,[validation_dataset], tconf)
 
-                    predictor.predict(args.get_features,args.input_newdata_dir)
+                    #predictor.predict(args.get_features,args.input_newdata_dir)
             else:
                 args = translate_args(args)
                 cmd_preprocess(args)

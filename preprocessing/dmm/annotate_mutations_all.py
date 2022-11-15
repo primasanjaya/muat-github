@@ -37,6 +37,14 @@ def get_context(v, prev_buf, next_buf, ref_genome,
     assert(ispowerof2(args.context))
     flank = (args.context * 2) / 2 - 1
 #    print 'get_context', chrom, pos, fref, falt, args.context
+
+    #check base and reference first
+    #ref_base = v.ref
+    #ref_base_in_reference = ref_genome[v.chrom][v.pos]
+
+    #if ref_base != ref_base_in_reference:
+    #    print(ref_base + ' ' +  ref_base_in_reference)
+
     if v.pos - flank - 1 < 0 or \
         (args.no_ref_preload == False and v.pos + flank >= len(ref_genome[v.chrom])):
         return None
@@ -188,6 +196,13 @@ def process_input(vr, o, sample_name, ref_genome, context,
                 warned_invalid_chrom = True
             n_invalid_chrom += 1
             continue
+
+        #pdb.set_trace()
+        refbase = variant.ref
+        ref_base_in_reference = ref_genome[variant.chrom][variant.pos-1]
+        if refbase != ref_base_in_reference:
+            print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+
         while len(next_buf) > 0 and (next_buf[0].chrom != variant.chrom or next_buf[0].pos < variant.pos - context):
             while len(prev_buf) > 0 and prev_buf[0].pos < next_buf[0].pos - context:
                 prev_buf.pop(0)
@@ -353,7 +368,11 @@ class VCFReader(VariantReader):
             if self.eof:
                 raise StopIteration()
             v = self.f.readline()
+            #if v == '##reference=ftp://ftp.sanger.ac.uk/pub/project/PanCancer/genome.fa.gz':
+                
             if v.startswith('#'):
+                if v[0:11] == '##reference':
+                    print('vcf files is using genome reference:' + str(v[12:]))
                 if v.startswith('#CHROM'):
                     self.hdr = v
                 continue
@@ -641,10 +660,16 @@ def func_annotate_mutation_all(args):
     status('{} input files found'.format(len(fns)), args)
     if len(fns) == 0:
         sys.exit(1)
-    
-    status('Reading reference... ', args, lf=False)
-    reference = read_reference(args.reference, args.verbose)
 
+    if args.convert_hg38_hg19:
+        #status('Reading reference h19... ', args, lf=False)
+        #reference_19 = read_reference(args.reference_h19, args.verbose)
+
+        status('Reading reference h38... ', args, lf=False)
+        reference_38 = read_reference(args.reference_h38, args.verbose)
+    else:
+        status('Reading reference h19... ', args, lf=False)
+        reference_19 = read_reference(args.reference_h19, args.verbose)
 
     # process variant
 
@@ -662,7 +687,7 @@ def func_annotate_mutation_all(args):
                 sample_name = fn[:-4]
             else:
                 sample_name = fn[:-7]
-            #pdb.set_trace()
+           
             sample_name = sample_name.split('/')
             sample_name = sample_name[-1]
         
@@ -683,14 +708,21 @@ def func_annotate_mutation_all(args):
             
             status(fmt.format(i + 1, len(fns), sample_name), args)
             vr = get_reader(f, args)
-            process_input(vr, o, sample_name, reference, args.context,
+
+            #reference and vcf should be same (create seq motif, get seq motif from correct reference)
+            if args.convert_hg38_hg19:
+                process_input(vr, o, sample_name, reference_38, args.context,
+                        mutation_code, reverse_mutation_code, args)
+            else:
+                process_input(vr, o, sample_name, reference_19, args.context,
                         mutation_code, reverse_mutation_code, args)
             f.close()
             o.close()
-            status('Output written to {}'.format(output_file), args)
-        
+            status('Output written to {}'.format(output_file), args)        
 
-            #next gc content
+            #gc content
+            #reference and .tsv.gz should be same (create gc content, get gc content from correct reference)
+
             input_gc = output_file
             output_gc = args.tmp_dir + sample_name + '.gc.tsv.gz'
             label = 'gc1kb'
@@ -698,17 +730,10 @@ def func_annotate_mutation_all(args):
             window = 1001
             batch_size = 100000
 
-
-            #gc content
-            '''
-            syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
-            -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
-            -o ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
-            -n 1001 \
-            -l gc1kb \
-            --reference ' + args.reference + ' \
-            --verbose'
-            '''
+            if args.convert_hg38_hg19: 
+                gc_reference = reference_38
+            else:
+                gc_reference = reference_19
 
             o = openz(output_gc, 'wt')
 
@@ -736,10 +761,10 @@ def func_annotate_mutation_all(args):
                     if cchrom != chrom:
                         cchrom = chrom
                         cpos = max(0, pos - window / 2)
-                        mpos = min(len(reference[chrom]) - 1, cpos + window)
+                        mpos = min(len(gc_reference[chrom]) - 1, cpos + window)
                         cpos = round(cpos)
                         mpos = round(mpos)
-                        buf = deque(reference[chrom][cpos:mpos])
+                        buf = deque(gc_reference[chrom][cpos:mpos])
                         gc = sum([1 for c in buf if c == 'C' or c == 'G'])
                         at = sum([1 for c in buf if c == 'A' or c == 'T'])
                     else:
@@ -754,21 +779,21 @@ def func_annotate_mutation_all(args):
                                         gc -= 1
                                     elif remove == 'A' or remove == 'T':
                                         at -= 1
-                                insert = reference[cchrom][round(cpos+window):round(cpos+window+cdiff)]
+                                insert = gc_reference[cchrom][round(cpos+window):round(cpos+window+cdiff)]
                                 gc += sum([1 for c in insert if c == 'C' or c == 'G'])
                                 at += sum([1 for c in insert if c == 'A' or c == 'T'])
                                 buf.extend(insert)
                             else:
                                 # reinit buffer at cpos2
-                                mpos = min(len(reference[chrom]) - 1, cpos2 + window)
-                                buf = deque(reference[chrom][round(cpos2):round(mpos)])
+                                mpos = min(len(gc_reference[chrom]) - 1, cpos2 + window)
+                                buf = deque(gc_reference[chrom][round(cpos2):round(mpos)])
                                 gc = sum([1 for c in buf if c == 'C' or c == 'G'])
                                 at = sum([1 for c in buf if c == 'A' or c == 'T'])
                             cpos = cpos2
-                    try:
-                        gc_ratio = 1.0 * gc / (gc + at)
-                    except:
-                        gc_ratio = 0
+                    #try:
+                    gc_ratio = 1.0 * gc / (gc + at)
+                    #except:
+                    #    gc_ratio = 0
 
                     o.write('{}\t{}\n'.format(s.strip().decode("utf-8"), gc_ratio))
 
@@ -780,6 +805,8 @@ def func_annotate_mutation_all(args):
                         then = now
             o.close()
 
+
+            #genic region only can be computed from h19, so we need to lift over h38 to h19 
 
             if args.convert_hg38_hg19:
                 from pyliftover import LiftOver
@@ -813,7 +840,9 @@ def func_annotate_mutation_all(args):
 
                 pd_hg38.to_csv(args.tmp_dir + sample_name + '.gc.tsv.gz',sep='\t',index=False, compression="gzip")
 
-            # Genic regions
+                #here we have the chrom and position changed to hg19, others are same (motif and gc content)
+
+            # Genic regions (dont need reference)
             output_genic = args.tmp_dir + sample_name + '.gc.genic.tsv.gz'
 
             syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -825,7 +854,7 @@ def func_annotate_mutation_all(args):
             #os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
 
-            #exon regions
+            #exon regions (dont need reference)
             output_exon = args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz'
 
             syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -845,7 +874,9 @@ def func_annotate_mutation_all(args):
             subprocess.run(syntax_geneorientation, shell=True)
             '''
 
-            #pdb.set_trace()        
+            #pdb.set_trace()       
+
+            #coding strand (need hg19 reference) 
             
             output_cs = args.tmp_dir + sample_name + '.gc.genic.exonic.cs.tsv.gz'
             annotation = args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz'
@@ -904,7 +935,7 @@ def func_annotate_mutation_all(args):
                 prev_pos = pos
                 ref, alt = v[3], v[4]
                 #pdb.set_trace()
-                base = reference[chrom][pos]
+                base = reference_19[chrom][pos]
                 if n_pos > 0:
                     if n_neg > 0:
                         st = '?'
