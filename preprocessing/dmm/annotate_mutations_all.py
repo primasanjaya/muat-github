@@ -765,8 +765,11 @@ def func_annotate_mutation_all(args):
                                 gc = sum([1 for c in buf if c == 'C' or c == 'G'])
                                 at = sum([1 for c in buf if c == 'A' or c == 'T'])
                             cpos = cpos2
+                    try:
+                        gc_ratio = 1.0 * gc / (gc + at)
+                    except:
+                        gc_ratio = 0
 
-                    gc_ratio = 1.0 * gc / (gc + at)
                     o.write('{}\t{}\n'.format(s.strip().decode("utf-8"), gc_ratio))
 
                     n_mut += 1
