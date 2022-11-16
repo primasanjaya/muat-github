@@ -781,42 +781,43 @@ def func_annotate_mutation_all(args):
                             print('Warning: This version only process SNV, skip this mutation')
                             pass
                         else:
-                            refbase = record.REF
-                            ref_base_in_reference = reference_38[record.CHROM][record.POS-1]
-                            if refbase != ref_base_in_reference:
-                                print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
-                            else:
-                                try:
-                                    #proceed mutation here 
-                                    first = reference_38[record.CHROM][record.POS-2]
-                                    mid_ref = reference_38[record.CHROM][record.POS-1]
-                                    #pdb.set_trace()
-                                    mid_sym = mutation_code[record.REF][str(record.ALT)]
-                                    third_ref = reference_38[record.CHROM][record.POS]
-
-                                    raw_seq = first + mid_ref + third_ref
-                                    seq = first + mid_sym + third_ref
-
-                                    if mid_ref == 'A' or mid_ref == 'G':
-                                        revseq = seq[::-1]
-                                        revseq = list(revseq)
-
-                                        revcomp=[]
-                                        for x in revseq:
-                                            #pdb.set_trace()
-                                            rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
-                                            revcomp.append(rev)
-                                        
+                            try:
+                                refbase = record.REF
+                                ref_base_in_reference = reference_38[record.CHROM][record.POS-1]
+                                if refbase != ref_base_in_reference:
+                                    print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+                                else:
+                                    try:
+                                        #proceed mutation here 
+                                        first = reference_38[record.CHROM][record.POS-2]
+                                        mid_ref = reference_38[record.CHROM][record.POS-1]
                                         #pdb.set_trace()
-                                        revcomp = ''.join(revcomp)
-                                        seq = revcomp
-                                except:
-                                    pass
+                                        mid_sym = mutation_code[record.REF][str(record.ALT)]
+                                        third_ref = reference_38[record.CHROM][record.POS]
 
-                                o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT,sample_name,seq))
+                                        raw_seq = first + mid_ref + third_ref
+                                        seq = first + mid_sym + third_ref
+
+                                        if mid_ref == 'A' or mid_ref == 'G':
+                                            revseq = seq[::-1]
+                                            revseq = list(revseq)
+
+                                            revcomp=[]
+                                            for x in revseq:
+                                                #pdb.set_trace()
+                                                rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
+                                                revcomp.append(rev)
+                                            
+                                            #pdb.set_trace()
+                                            revcomp = ''.join(revcomp)
+                                            seq = revcomp
+                                            o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT,sample_name,seq))
+                                    except:
+                                        pass
+                            except:
+                                 pass
 
                 o.close()
-
                 
                 #natural sort motif
                 pd_motif = pd.read_csv(output_file,sep='\t') 
