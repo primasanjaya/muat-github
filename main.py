@@ -515,7 +515,7 @@ if __name__ == '__main__':
 
                     predictor = Predictor(model, None,[validation_dataset], tconf)
 
-                    #predictor.predict(args.get_features,args.input_newdata_dir)
+                    predictor.predict(args.get_features,args.input_newdata_dir)
             else:
                 args = translate_args(args)
                 cmd_preprocess(args)

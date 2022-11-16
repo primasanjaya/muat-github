@@ -9,60 +9,9 @@ import os
 import pandas as pd
 import shutil
 import traceback
-from natsort import natsort_keygen
 
 dna_comp = {'A' : 'T', 'C' : 'G', 'G' : 'C', 'T' : 'A',
             'N' : 'N', '-' : '-', '+' : '+'}
-
-accepted_pos = ['chr1',
-'chr2',
-'chr3',
-'chr4',
-'chr5',
-'chr6',
-'chr7',
-'chr8',
-'chr9',
-'chr10',
-'chr11',
-'chr12',
-'chr13',
-'chr14',
-'chr15',
-'chr16',
-'chr17',
-'chr18',
-'chr19',
-'chr20',
-'chr21',
-'chr22',
-'chrX',
-'chrY']
-
-accepted_pos_h19 = ['1',
-'2',
-'3',
-'4',
-'5',
-'6',
-'7',
-'8',
-'9',
-'10',
-'11',
-'12',
-'13',
-'14',
-'15',
-'16',
-'17',
-'18',
-'19',
-'20',
-'21',
-'22',
-'X',
-'Y']
 
 try:
     import swalign
@@ -89,11 +38,19 @@ def get_context(v, prev_buf, next_buf, ref_genome,
     assert(ispowerof2(args.context))
     flank = (args.context * 2) / 2 - 1
 #    print 'get_context', chrom, pos, fref, falt, args.context
+
+    #check base and reference first
+    #ref_base = v.ref
+    #ref_base_in_reference = ref_genome[v.chrom][v.pos]
+
+    #if ref_base != ref_base_in_reference:
+    #    print(ref_base + ' ' +  ref_base_in_reference)
+
     if v.pos - flank - 1 < 0 or \
         (args.no_ref_preload == False and v.pos + flank >= len(ref_genome[v.chrom])):
         return None
     if args.no_ref_preload:
-        seq = subprocess.check_output(['samtools', 'faidx', args.reference_19,
+        seq = subprocess.check_output(['samtools', 'faidx', args.reference,
                                       '{}:{}-{}'.format(v.chrom, v.pos - flank,
                                        v.pos + flank)])
         seq = ''.join(seq.split('\n')[1:])
@@ -196,7 +153,7 @@ def get_context(v, prev_buf, next_buf, ref_genome,
         for x in revseq:
             rev = mutation_code[dna_comp_default(reverse_code.get(x)[0])][dna_comp_default(reverse_code.get(x)[1])]
             revcomp.append(rev)
-        #pdb.set_trace()
+
         seq = revcomp
 
         fpos = n - ((len(seq) - 1) / 2) - 1
@@ -240,6 +197,13 @@ def process_input(vr, o, sample_name, ref_genome, context,
                 warned_invalid_chrom = True
             n_invalid_chrom += 1
             continue
+
+        #pdb.set_trace()
+        refbase = variant.ref
+        ref_base_in_reference = ref_genome[variant.chrom][variant.pos-1]
+        if refbase != ref_base_in_reference:
+            print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+
         while len(next_buf) > 0 and (next_buf[0].chrom != variant.chrom or next_buf[0].pos < variant.pos - context):
             while len(prev_buf) > 0 and prev_buf[0].pos < next_buf[0].pos - context:
                 prev_buf.pop(0)
@@ -405,7 +369,11 @@ class VCFReader(VariantReader):
             if self.eof:
                 raise StopIteration()
             v = self.f.readline()
+            #if v == '##reference=ftp://ftp.sanger.ac.uk/pub/project/PanCancer/genome.fa.gz':
+                
             if v.startswith('#'):
+                if v[0:11] == '##reference':
+                    print('vcf files is using genome reference:' + str(v[12:]))
                 if v.startswith('#CHROM'):
                     self.hdr = v
                 continue
@@ -695,13 +663,13 @@ def func_annotate_mutation_all(args):
         sys.exit(1)
 
     if args.convert_hg38_hg19:
+        #status('Reading reference h19... ', args, lf=False)
+        #reference_19 = read_reference(args.reference_h19, args.verbose)
+
         status('Reading reference h38... ', args, lf=False)
-        reference_38 = read_reference(args.reference_h38, args.verbose)   
-
-        status('Reading reference h19... ', args, lf=False)
-        reference_19 = read_reference(args.reference_h19, args.verbose)
-
-    else:    
+        reference_38 = read_reference(args.reference_h38, args.verbose)
+        pass
+    else:
         status('Reading reference h19... ', args, lf=False)
         reference_19 = read_reference(args.reference_h19, args.verbose)
 
@@ -721,19 +689,14 @@ def func_annotate_mutation_all(args):
                 sample_name = fn[:-4]
             else:
                 sample_name = fn[:-7]
-            #pdb.set_trace()
+           
             sample_name = sample_name.split('/')
             sample_name = sample_name[-1]
 
             if args.convert_hg38_hg19:
+
                 import vcf
-                vcf_reader = vcf.Reader(open(fn, 'rb'))
-
-                output_file = args.tmp_dir + sample_name + '.tsv.gz'
-                o = gzip.open(output_file, 'wt')
-
-                o.write('chrom\tpos\tref\talt\tsample\tseq\n')
-
+                vcf_reader = vcf.Reader(open('/mnt/e/CRC_testsample_GRCh38_Mutect2_PASS_MSS.vcf.gz', 'rb'))
                 for record in vcf_reader:
                     if len(record.ALT) > 1:
                         pass
@@ -747,8 +710,9 @@ def func_annotate_mutation_all(args):
                             if refbase != ref_base_in_reference:
                                 print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
                             else:
-                                #proceed mutation here 
+                                #proceed
 
+                                #get full seq = 
                                 first = reference_38[record.CHROM][record.POS-2]
                                 mid_ref = reference_38[record.CHROM][record.POS-1]
                                 #pdb.set_trace()
@@ -758,71 +722,70 @@ def func_annotate_mutation_all(args):
                                 raw_seq = first + mid_ref + third_ref
                                 seq = first + mid_sym + third_ref
 
-                                if mid_ref == 'A' or mid_ref == 'G':
-                                    revseq = seq[::-1]
-                                    revseq = list(revseq)
-
+                                if mid_ref == 'C' or mid_ref == 'T':
+                                    revseq = raw_seq[::-1]
                                     revcomp=[]
+
+                                    first = revseq[0]
+                                    comp_first = dna_comp_default(first)
+                                    mid_ref = revseq[1]
+                                    comp_sym = dna_comp_default(mid_sym)
+
+                                    pdb.set_trace()
                                     for x in revseq:
-                                        #pdb.set_trace()
-                                        rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
+                                        rev = mutation_code[dna_comp_default(reverse_code.get(x)[0])][dna_comp_default(reverse_code.get(x)[1])]
                                         revcomp.append(rev)
-                                    
-                                    #pdb.set_trace()
-                                    revcomp = ''.join(revcomp)
+                                    pdb.set_trace()
                                     seq = revcomp
+                                else:
+                                    seq = raw_seq
 
-                                o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT[0],sample_name,seq))
-                o.close()
 
-                
-                #natural sort motif
-                pd_motif = pd.read_csv(output_file,sep='\t') 
-                pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos)]
-                pd_motif = pd_motif.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
-                pd_motif.to_csv(output_file,sep='\t',index=False, compression="gzip")
 
-                #end motif
 
-                #lift over comes here
+
+
+                #genic region only can be computed from h19, so we need to lift over h38 to h19 
+
+                '''
                 from pyliftover import LiftOver
 
                 #lo = LiftOver('/mnt/g/experiment/redo_muat/muat-github/preprocessing/genomic_tracks/hg38ToHg19.over.chain.gz')
                 #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
                 lo = LiftOver('hg38', 'hg19')
                 
-                pd_hg38 = pd.read_csv(output_file,sep='\t') 
+                pd_hg38 = pd.read_csv(args.tmp_dir + sample_name + '.gc.tsv.gz',sep='\t') 
                 chrom_pos = []
 
                 for i in range(len(pd_hg38)):
                     try:
                         row = pd_hg38.iloc[i]
-                        chrom = row['chrom']
+                        chrom = str('chr') + str(row['chrom'])
                         pos = row['pos']
                         ref = row['ref']
                         alt = row['alt']
                         sample = row['sample']
                         seq = row['seq']
-                        #gc1kb = row['gc1kb']
+                        gc1kb = row['gc1kb']
                         hg19chrompos = lo.convert_coordinate(chrom, pos)
                         chrom = hg19chrompos[0][0][3:]
                         pos = hg19chrompos[0][1]
 
-                        chrom_pos.append((chrom,pos,ref,alt,sample,seq))
+                        chrom_pos.append((chrom,pos,ref,alt,sample,seq,gc1kb))
                     except:
                         pass
                 pd_hg19 = pd.DataFrame(chrom_pos)
-
-                #pdb.set_trace()
                 pd_hg19.columns = pd_hg38.columns.tolist()
 
-                #natural sort
-                pd_hg19 = pd_hg19.loc[pd_hg19['chrom'].isin(accepted_pos_h19)]
-                pd_hg19.to_csv(output_file,sep='\t',index=False, compression="gzip")
+                pd_hg38.to_csv(args.tmp_dir + sample_name + '.gc.tsv.gz',sep='\t',index=False, compression="gzip")
 
-                #end liftover
-                                
+                #here we have the chrom and position changed to hg19, others are same (motif and gc content)
+                '''
+
             else:
+
+
+        
                 output_file = args.tmp_dir + sample_name + '.tsv.gz'
                 o = gzip.open(output_file, 'wt')
 
@@ -840,105 +803,106 @@ def func_annotate_mutation_all(args):
                 
                 status(fmt.format(i + 1, len(fns), sample_name), args)
                 vr = get_reader(f, args)
-                process_input(vr, o, sample_name, reference_19, args.context,
+
+                #reference and vcf should be same (create seq motif, get seq motif from correct reference)
+                if args.convert_hg38_hg19:
+                    process_input(vr, o, sample_name, reference_38, args.context,
+                            mutation_code, reverse_mutation_code, args)
+                else:
+                    process_input(vr, o, sample_name, reference_19, args.context,
                             mutation_code, reverse_mutation_code, args)
                 f.close()
                 o.close()
-                status('Output written to {}'.format(output_file), args)
-            
+                status('Output written to {}'.format(output_file), args)        
 
-            #next gc content
-            input_gc = output_file
-            output_gc = args.tmp_dir + sample_name + '.gc.tsv.gz'
-            label = 'gc1kb'
-            verbose = True
-            window = 1001
-            batch_size = 100000
+                #gc content
+                #reference and .tsv.gz should be same (create gc content, get gc content from correct reference)
 
+                input_gc = output_file
+                output_gc = args.tmp_dir + sample_name + '.gc.tsv.gz'
+                label = 'gc1kb'
+                verbose = True
+                window = 1001
+                batch_size = 100000
 
-            #gc content
-            '''
-            syntax_gc = 'python3 preprocessing/dmm/annotate_mutations_with_gc_content.py \
-            -i ' + args.tmp_dir + only_input_filename + '.tsv.gz \
-            -o ' + args.tmp_dir + only_input_filename + '.gc.tsv.gz \
-            -n 1001 \
-            -l gc1kb \
-            --reference ' + args.reference + ' \
-            --verbose'
-            '''
+                if args.convert_hg38_hg19: 
+                    gc_reference = reference_38
+                else:
+                    gc_reference = reference_19
 
-            o = openz(output_gc, 'wt')
+                o = openz(output_gc, 'wt')
 
-            #pdb.set_trace()
-            hdr = openz(input_gc).readline().strip().decode("utf-8").split('\t')
-            n_cols = len(hdr)
-            sys.stderr.write('{} columns in input\n'.format(n_cols))
-            if hdr[0] == 'chrom':
-                sys.stderr.write('Header present\n')
                 #pdb.set_trace()
-                o.write('{}\t{}\n'.format('\t'.join(hdr), label))
-            else:
-                sys.stderr.write('Header absent\n')
-                hdr = None
+                hdr = openz(input_gc).readline().strip().decode("utf-8").split('\t')
+                n_cols = len(hdr)
+                sys.stderr.write('{} columns in input\n'.format(n_cols))
+                if hdr[0] == 'chrom':
+                    sys.stderr.write('Header present\n')
+                    #pdb.set_trace()
+                    o.write('{}\t{}\n'.format('\t'.join(hdr), label))
+                else:
+                    sys.stderr.write('Header absent\n')
+                    hdr = None
 
-            n_mut = 0
-            then = datetime.datetime.now()
-            with openz(input_gc) as f:
-                if hdr:
-                    f.readline()
-                cchrom = None
-                for s in f:
-                    v = s.strip().decode("utf-8").split('\t')
-                    chrom, pos = v[0], int(v[1])
-                    if cchrom != chrom:
-                        cchrom = chrom
-                        cpos = max(0, pos - window / 2)
-                        mpos = min(len(reference_19[chrom]) - 1, cpos + window)
-                        cpos = round(cpos)
-                        mpos = round(mpos)
-                        buf = deque(reference_19[chrom][cpos:mpos])
-                        gc = sum([1 for c in buf if c == 'C' or c == 'G'])
-                        at = sum([1 for c in buf if c == 'A' or c == 'T'])
-                    else:
-                        cpos2 = max(0, pos - window / 2)
-                        cdiff = cpos2 - cpos
-                        if cdiff > 0:
-                            if cdiff < window:
-                                # incremental update of buffer
-                                for _ in range(round(cdiff)):
-                                    remove = buf.popleft()
-                                    if remove == 'C' or remove == 'G':
-                                        gc -= 1
-                                    elif remove == 'A' or remove == 'T':
-                                        at -= 1
-                                insert = reference_19[cchrom][round(cpos+window):round(cpos+window+cdiff)]
-                                gc += sum([1 for c in insert if c == 'C' or c == 'G'])
-                                at += sum([1 for c in insert if c == 'A' or c == 'T'])
-                                buf.extend(insert)
-                            else:
-                                # reinit buffer at cpos2
-                                mpos = min(len(reference_19[chrom]) - 1, cpos2 + window)
-                                buf = deque(reference_19[chrom][round(cpos2):round(mpos)])
-                                gc = sum([1 for c in buf if c == 'C' or c == 'G'])
-                                at = sum([1 for c in buf if c == 'A' or c == 'T'])
-                            cpos = cpos2
-                    try:
+                n_mut = 0
+                then = datetime.datetime.now()
+                with openz(input_gc) as f:
+                    if hdr:
+                        f.readline()
+                    cchrom = None
+                    for s in f:
+                        v = s.strip().decode("utf-8").split('\t')
+                        chrom, pos = v[0], int(v[1])
+                        if cchrom != chrom:
+                            cchrom = chrom
+                            cpos = max(0, pos - window / 2)
+                            mpos = min(len(gc_reference[chrom]) - 1, cpos + window)
+                            cpos = round(cpos)
+                            mpos = round(mpos)
+                            buf = deque(gc_reference[chrom][cpos:mpos])
+                            gc = sum([1 for c in buf if c == 'C' or c == 'G'])
+                            at = sum([1 for c in buf if c == 'A' or c == 'T'])
+                        else:
+                            cpos2 = max(0, pos - window / 2)
+                            cdiff = cpos2 - cpos
+                            if cdiff > 0:
+                                if cdiff < window:
+                                    # incremental update of buffer
+                                    for _ in range(round(cdiff)):
+                                        remove = buf.popleft()
+                                        if remove == 'C' or remove == 'G':
+                                            gc -= 1
+                                        elif remove == 'A' or remove == 'T':
+                                            at -= 1
+                                    insert = gc_reference[cchrom][round(cpos+window):round(cpos+window+cdiff)]
+                                    gc += sum([1 for c in insert if c == 'C' or c == 'G'])
+                                    at += sum([1 for c in insert if c == 'A' or c == 'T'])
+                                    buf.extend(insert)
+                                else:
+                                    # reinit buffer at cpos2
+                                    mpos = min(len(gc_reference[chrom]) - 1, cpos2 + window)
+                                    buf = deque(gc_reference[chrom][round(cpos2):round(mpos)])
+                                    gc = sum([1 for c in buf if c == 'C' or c == 'G'])
+                                    at = sum([1 for c in buf if c == 'A' or c == 'T'])
+                                cpos = cpos2
+                        #try:
                         gc_ratio = 1.0 * gc / (gc + at)
-                    except:
-                        gc_ratio = 0
+                        #except:
+                        #    gc_ratio = 0
 
-                    o.write('{}\t{}\n'.format(s.strip().decode("utf-8"), gc_ratio))
+                        o.write('{}\t{}\n'.format(s.strip().decode("utf-8"), gc_ratio))
 
-                    n_mut += 1
-                    if verbose and (n_mut % batch_size) == 0:
-                        now = datetime.datetime.now()
-                        td = now - then
-                        sys.stderr.write('{}: {} mutations. {}/mutation\n'.format(now, n_mut, td / batch_size))
-                        then = now
-            o.close()
+                        n_mut += 1
+                        if verbose and (n_mut % batch_size) == 0:
+                            now = datetime.datetime.now()
+                            td = now - then
+                            sys.stderr.write('{}: {} mutations. {}/mutation\n'.format(now, n_mut, td / batch_size))
+                            then = now
+                o.close()
 
 
-            # Genic regions
+
+            # Genic regions (dont need reference)
             output_genic = args.tmp_dir + sample_name + '.gc.genic.tsv.gz'
 
             syntax_genic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -947,16 +911,10 @@ def func_annotate_mutation_all(args):
             '+ output_genic + '\
             genic'
             subprocess.run(syntax_genic, shell=True)
-
-            #natural sort
-            pd_sort = pd.read_csv(output_genic,sep='\t') 
-            pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
-            pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
-            pd_sort.to_csv(output_genic,sep='\t',index=False, compression="gzip")
-
             #os.remove(args.tmp_dir + only_input_filename + '.gc.tsv.gz')
 
-            #exon regions
+
+            #exon regions (dont need reference)
             output_exon = args.tmp_dir + sample_name + '.gc.genic.exonic.tsv.gz'
 
             syntax_exonic = 'preprocessing/dmm/annotate_mutations_with_bed.sh \
@@ -965,11 +923,6 @@ def func_annotate_mutation_all(args):
             ' + output_exon + ' \
             exonic'
             subprocess.run(syntax_exonic, shell=True)
-
-            pd_sort = pd.read_csv(output_exon,sep='\t') 
-            pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
-            pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
-            pd_sort.to_csv(output_exon,sep='\t',index=False, compression="gzip")
 
             '''
             syntax_geneorientation = 'python3 preprocessing/dmm/annotate_mutations_with_coding_strand.py \
@@ -981,8 +934,10 @@ def func_annotate_mutation_all(args):
             subprocess.run(syntax_geneorientation, shell=True)
             '''
 
-            #pdb.set_trace()
+            #pdb.set_trace()       
 
+            #coding strand (need hg19 reference) 
+            
             output_cs = args.tmp_dir + sample_name + '.gc.genic.exonic.cs.tsv.gz'
             annotation = args.genomic_tracks + 'Homo_sapiens.GRCh37.87.transcript_directionality.bed.gz'
 
@@ -1064,17 +1019,11 @@ def func_annotate_mutation_all(args):
             o.flush()
             o.close()
 
-            pd_sort = pd.read_csv(output_cs,sep='\t') 
-            pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
-            pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
-            pd_sort.to_csv(output_cs,sep='\t',index=False, compression="gzip")
-
             #pdb.set_trace()
             try:
                 os.remove(args.tmp_dir + sample_name + '.vcf')
             except:
                 pass
-
             os.remove(args.tmp_dir + sample_name + '.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
             os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
