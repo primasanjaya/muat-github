@@ -786,30 +786,32 @@ def func_annotate_mutation_all(args):
                             if refbase != ref_base_in_reference:
                                 print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
                             else:
-                                #proceed mutation here 
-
-                                first = reference_38[record.CHROM][record.POS-2]
-                                mid_ref = reference_38[record.CHROM][record.POS-1]
-                                #pdb.set_trace()
-                                mid_sym = mutation_code[record.REF][str(record.ALT)]
-                                third_ref = reference_38[record.CHROM][record.POS]
-
-                                raw_seq = first + mid_ref + third_ref
-                                seq = first + mid_sym + third_ref
-
-                                if mid_ref == 'A' or mid_ref == 'G':
-                                    revseq = seq[::-1]
-                                    revseq = list(revseq)
-
-                                    revcomp=[]
-                                    for x in revseq:
-                                        #pdb.set_trace()
-                                        rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
-                                        revcomp.append(rev)
-                                    
+                                try:
+                                    #proceed mutation here 
+                                    first = reference_38[record.CHROM][record.POS-2]
+                                    mid_ref = reference_38[record.CHROM][record.POS-1]
                                     #pdb.set_trace()
-                                    revcomp = ''.join(revcomp)
-                                    seq = revcomp
+                                    mid_sym = mutation_code[record.REF][str(record.ALT)]
+                                    third_ref = reference_38[record.CHROM][record.POS]
+
+                                    raw_seq = first + mid_ref + third_ref
+                                    seq = first + mid_sym + third_ref
+
+                                    if mid_ref == 'A' or mid_ref == 'G':
+                                        revseq = seq[::-1]
+                                        revseq = list(revseq)
+
+                                        revcomp=[]
+                                        for x in revseq:
+                                            #pdb.set_trace()
+                                            rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
+                                            revcomp.append(rev)
+                                        
+                                        #pdb.set_trace()
+                                        revcomp = ''.join(revcomp)
+                                        seq = revcomp
+                                except:
+                                    pass
 
                                 o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT,sample_name,seq))
 
