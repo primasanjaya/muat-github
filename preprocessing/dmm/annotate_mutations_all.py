@@ -729,8 +729,6 @@ def func_annotate_mutation_all(args):
                 import vcf
                 vcf_reader = vcf.Reader(open(fn, 'rb'))
 
-                pdb.set_trace()
-
                 output_file = args.tmp_dir + sample_name + '.tsv.gz'
                 o = gzip.open(output_file, 'wt')
 
