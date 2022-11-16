@@ -729,16 +729,57 @@ def func_annotate_mutation_all(args):
                 import vcf
                 vcf_reader = vcf.Reader(open(fn, 'rb'))
 
+                pdb.set_trace()
+
                 output_file = args.tmp_dir + sample_name + '.tsv.gz'
                 o = gzip.open(output_file, 'wt')
 
                 o.write('chrom\tpos\tref\talt\tsample\tseq\n')
 
                 for record in vcf_reader:
-                    if len(record.ALT) > 1:
-                        pass
-                    else:
-                        if len(record.ALT[0])> 1:
+                    try:
+                        ##VCF 4.2
+                        if len(record.ALT) > 1:
+                            pass
+                        else:
+                            if len(record.ALT[0])> 1:
+                                print('Warning: This version only process SNV, skip this mutation')
+                                pass
+                            else:
+                                refbase = record.REF
+                                ref_base_in_reference = reference_38[record.CHROM][record.POS-1]
+                                if refbase != ref_base_in_reference:
+                                    print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+                                else:
+                                    #proceed mutation here 
+
+                                    first = reference_38[record.CHROM][record.POS-2]
+                                    mid_ref = reference_38[record.CHROM][record.POS-1]
+                                    #pdb.set_trace()
+                                    mid_sym = mutation_code[record.REF][str(record.ALT[0])]
+                                    third_ref = reference_38[record.CHROM][record.POS]
+
+                                    raw_seq = first + mid_ref + third_ref
+                                    seq = first + mid_sym + third_ref
+
+                                    if mid_ref == 'A' or mid_ref == 'G':
+                                        revseq = seq[::-1]
+                                        revseq = list(revseq)
+
+                                        revcomp=[]
+                                        for x in revseq:
+                                            #pdb.set_trace()
+                                            rev = mutation_code[dna_comp_default(reverse_mutation_code.get(x)[0])][dna_comp_default(reverse_mutation_code.get(x)[1])]
+                                            revcomp.append(rev)
+                                        
+                                        #pdb.set_trace()
+                                        revcomp = ''.join(revcomp)
+                                        seq = revcomp
+
+                                    o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT[0],sample_name,seq))
+                    except:
+                        ##VCF 4.1
+                        if len(record.ALT)> 1:
                             print('Warning: This version only process SNV, skip this mutation')
                             pass
                         else:
@@ -752,7 +793,7 @@ def func_annotate_mutation_all(args):
                                 first = reference_38[record.CHROM][record.POS-2]
                                 mid_ref = reference_38[record.CHROM][record.POS-1]
                                 #pdb.set_trace()
-                                mid_sym = mutation_code[record.REF][str(record.ALT[0])]
+                                mid_sym = mutation_code[record.REF][str(record.ALT)]
                                 third_ref = reference_38[record.CHROM][record.POS]
 
                                 raw_seq = first + mid_ref + third_ref
@@ -772,7 +813,8 @@ def func_annotate_mutation_all(args):
                                     revcomp = ''.join(revcomp)
                                     seq = revcomp
 
-                                o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT[0],sample_name,seq))
+                                o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT,sample_name,seq))
+
                 o.close()
 
                 

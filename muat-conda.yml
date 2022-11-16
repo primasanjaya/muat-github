@@ -22,3 +22,5 @@ dependencies:
   - gzip
   - perl-io-uncompress-gunzip
   - pyliftover
+  - pyvcf
+  - natsort
