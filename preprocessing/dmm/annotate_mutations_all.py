@@ -747,7 +747,8 @@ def func_annotate_mutation_all(args):
                                 refbase = record.REF
                                 ref_base_in_reference = reference_38[record.CHROM][record.POS-1]
                                 if refbase != ref_base_in_reference:
-                                    print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+                                    #print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+                                    pass
                                 else:
                                     #proceed mutation here 
 
@@ -778,14 +779,15 @@ def func_annotate_mutation_all(args):
                     except:
                         ##VCF 4.1
                         if len(record.ALT)> 1:
-                            print('Warning: This version only process SNV, skip this mutation')
+                            #print('Warning: This version only process SNV, skip this mutation')
                             pass
                         else:
                             try:
                                 refbase = record.REF
                                 ref_base_in_reference = reference_38[record.CHROM][record.POS-1]
                                 if refbase != ref_base_in_reference:
-                                    print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
+                                    pass
+                                    #print('Warning: VCF file is not same as genome reference, please check the correct genome reference for this file')
                                 else:
                                     try:
                                         #proceed mutation here 
