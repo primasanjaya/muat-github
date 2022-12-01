@@ -670,7 +670,7 @@ def func_annotate_mutation_all(args):
 
     "fns is all input file full paths in list"
 
-    fns  = pd.read_csv(args.predict_filepath,sep='\t',index_col=0)['path'].to_list()
+    fns  = pd.read_csv(args.predict_filepath,sep='\t',index_col=0,low_memory=False)['path'].to_list()
 
     '''
     for ddir_or_fnlist in args.input:
@@ -777,6 +777,7 @@ def func_annotate_mutation_all(args):
 
                                     o.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(record.CHROM,record.POS,record.REF,record.ALT[0],sample_name,seq))
                     except:
+                        '''
                         ##VCF 4.1
                         if len(record.ALT)> 1:
                             #print('Warning: This version only process SNV, skip this mutation')
@@ -818,11 +819,35 @@ def func_annotate_mutation_all(args):
                                         pass
                             except:
                                  pass
+                            '''
+                        #Esa's code VCF 4.1
+                        output_file = args.tmp_dir + sample_name + '.tsv.gz'
+                        o = gzip.open(output_file, 'wt')
+
+                        f, sample_name_2 = open_stream(args,fn)
+
+                        digits = int(np.ceil(np.log10(len(fns))))
+                        fmt = '{:' + str(digits) + 'd}/{:' + str(digits) + 'd} {}: '
+                        if args.info_column:
+                            infotag = '\t{}'.format('\t'.join(map(str.lower, args.info_column)))
+                        else:
+                            infotag = ''
+                        status('Writing mutation sequences...', args)
+
+                        o.write('chrom\tpos\tref\talt\tsample\tseq{}\n'.format(infotag))
+                        
+                        status(fmt.format(i + 1, len(fns), sample_name), args)
+                        vr = get_reader(f, args)
+                        process_input(vr, o, sample_name, reference_19, args.context,
+                                    mutation_code, reverse_mutation_code, args)
+                        f.close()
+                        o.close()
+                        status('Output written to {}'.format(output_file), args)
 
                 o.close()
                 
                 #natural sort motif
-                pd_motif = pd.read_csv(output_file,sep='\t') 
+                pd_motif = pd.read_csv(output_file,sep='\t',low_memory=False) 
                 pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos)]
                 pd_motif = pd_motif.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
                 pd_motif.to_csv(output_file,sep='\t',index=False, compression="gzip")
@@ -836,7 +861,7 @@ def func_annotate_mutation_all(args):
                 #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
                 lo = LiftOver('hg38', 'hg19')
                 
-                pd_hg38 = pd.read_csv(output_file,sep='\t') 
+                pd_hg38 = pd.read_csv(output_file,sep='\t',low_memory=False) 
                 chrom_pos = []
 
                 for i in range(len(pd_hg38)):
@@ -994,7 +1019,7 @@ def func_annotate_mutation_all(args):
             subprocess.run(syntax_genic, shell=True)
 
             #natural sort
-            pd_sort = pd.read_csv(output_genic,sep='\t') 
+            pd_sort = pd.read_csv(output_genic,sep='\t',low_memory=False) 
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             pd_sort.to_csv(output_genic,sep='\t',index=False, compression="gzip")
@@ -1011,7 +1036,7 @@ def func_annotate_mutation_all(args):
             exonic'
             subprocess.run(syntax_exonic, shell=True)
 
-            pd_sort = pd.read_csv(output_exon,sep='\t') 
+            pd_sort = pd.read_csv(output_exon,sep='\t',low_memory=False) 
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             pd_sort.to_csv(output_exon,sep='\t',index=False, compression="gzip")
@@ -1109,7 +1134,7 @@ def func_annotate_mutation_all(args):
             o.flush()
             o.close()
 
-            pd_sort = pd.read_csv(output_cs,sep='\t') 
+            pd_sort = pd.read_csv(output_cs,sep='\t',low_memory=False) 
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             pd_sort.to_csv(output_cs,sep='\t',index=False, compression="gzip")

@@ -17,9 +17,9 @@ from preprocessing.dmm.preprocess3 import *
 def preprocessing_fromdmm_all(args):
 
     #load all dictionary
-    dictMutation = pd.read_csv(args.cwd + '/extfile/dictMutation.csv',index_col=0)
-    dictChpos = pd.read_csv(args.cwd + '/extfile/dictChpos.csv',index_col=0)
-    dictGES = pd.read_csv(args.cwd + '/extfile/dictGES.csv',index_col=0)
+    dictMutation = pd.read_csv(args.cwd + '/extfile/dictMutation.csv',index_col=0,low_memory=False)
+    dictChpos = pd.read_csv(args.cwd + '/extfile/dictChpos.csv',index_col=0,low_memory=False)
+    dictGES = pd.read_csv(args.cwd + '/extfile/dictGES.csv',index_col=0,low_memory=False)
 
     fns  = pd.read_csv(args.predict_filepath,sep='\t',index_col=0)['path'].to_list()
 
@@ -41,7 +41,7 @@ def preprocessing_fromdmm_all(args):
             readfile = filename + '.gc.genic.exonic.cs.tsv.gz'
             #pdb.set_trace()
 
-            pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t')
+            pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t',low_memory=False)
 
             ps = (pd_data['pos'] / 1000000).apply(np.floor).astype(int).astype(str)
 
@@ -91,9 +91,9 @@ def preprocessing_fromdmm_all(args):
 def preprocessing_fromdmm(args):
 
     #load all dictionary
-    dictMutation = pd.read_csv(args.cwd + '/extfile/dictMutation.csv',index_col=0)
-    dictChpos = pd.read_csv(args.cwd + '/extfile/dictChpos.csv',index_col=0)
-    dictGES = pd.read_csv(args.cwd + '/extfile/dictGES.csv',index_col=0)
+    dictMutation = pd.read_csv(args.cwd + '/extfile/dictMutation.csv',index_col=0,low_memory=False)
+    dictChpos = pd.read_csv(args.cwd + '/extfile/dictChpos.csv',index_col=0,low_memory=False)
+    dictGES = pd.read_csv(args.cwd + '/extfile/dictGES.csv',index_col=0,low_memory=False)
 
 
     filename = args.output.split('/')
@@ -102,7 +102,7 @@ def preprocessing_fromdmm(args):
 
     readfile = filename + '.gc.genic.exonic.cs.tsv.gz'
 
-    pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t')
+    pd_data = pd.read_csv(args.tmp_dir + readfile,sep='\t',low_memory=False)
 
     ps = (pd_data['pos'] / 1000000).apply(np.floor).astype(int).astype(str)
 

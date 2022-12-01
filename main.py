@@ -33,6 +33,7 @@ from preprocessing.dmm.dmm import *
 from preprocessing.fromvcffiles import *
 from preprocessing.dmm.preprocess3 import *
 from preprocessing.dmm.annotate_mutations_all import *
+from preprocessing.dmm.annotate_mutations_all_modified import *
 
 from models.utils import *
 
@@ -189,6 +190,9 @@ def get_args():
 
         parser.add_argument('--convert-hg38-hg19',action='store_true', default=False)
 
+        parser.add_argument('--vcf42',action='store_true', default=False)
+        parser.add_argument('--vcf41',action='store_true', default=False)
+
         #dmm_parser
         parser.add_argument('-v', '--verbose', type=int, help='Try to be more verbose')
 
@@ -254,7 +258,7 @@ def execute_annotation(args,only_input_filename):
         #lo = LiftOver('/genomic_tracks/GRCh37_to_GRCh38.chain.gz')
         lo = LiftOver('hg38', 'hg19')
         
-        pd_hg38 = pd.read_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t') 
+        pd_hg38 = pd.read_csv(args.tmp_dir + only_input_filename + '.gc.tsv.gz',sep='\t',low_memory=False) 
         chrom_pos = []
 
         for i in range(len(pd_hg38)):
@@ -453,7 +457,7 @@ if __name__ == '__main__':
             if args.predict_all:
                 args.ensemble = True
                 args = translate_args(args)
-                func_annotate_mutation_all(args)
+                func_annotate_mutation_all_modified(args)
                 preprocessing_fromdmm_all(args)
 
                 device = 'cpu'
@@ -465,7 +469,6 @@ if __name__ == '__main__':
                 #args.single_pred_vcf = True #carefull this is used in args.single pred. will be called twice if this is put above single_pred vcf
                 
                 for i in range(len(all_folder)):
-
                     try:
                         folder1 = all_folder[i]
                         splitfold = folder1.split('fold')
