@@ -192,6 +192,8 @@ def get_args():
 
         parser.add_argument('--vcf42',action='store_true', default=False)
         parser.add_argument('--vcf41',action='store_true', default=False)
+        parser.add_argument('--gel',action='store_true', default=False)
+
 
         #dmm_parser
         parser.add_argument('-v', '--verbose', type=int, help='Try to be more verbose')

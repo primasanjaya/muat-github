@@ -730,14 +730,18 @@ def func_annotate_mutation_all_modified(args):
                 print('current MuAt version cant process the VCF file version')
             #try:
 
-            get_ext = fn[-4:]
-            if get_ext == '.vcf':
-                sample_name = fn[:-4]
+            if args.gel:
+                sample_name = fn.split('/')
+                sample_name = '_'.join(sample_name)
             else:
-                sample_name = fn[:-7]
-            #pdb.set_trace()
-            sample_name = sample_name.split('/')
-            sample_name = sample_name[-1]
+                get_ext = fn[-4:]
+                if get_ext == '.vcf':
+                    sample_name = fn[:-4]
+                else:
+                    sample_name = fn[:-7]
+                #pdb.set_trace()
+                sample_name = sample_name.split('/')
+                sample_name = sample_name[-1]
 
             process = []
 
