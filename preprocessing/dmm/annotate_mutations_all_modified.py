@@ -771,6 +771,7 @@ def func_annotate_mutation_all_modified(args):
                 #pdb.set_trace()
                 #natural sort motif
                 pd_motif = pd.read_csv(output_file,sep='\t',low_memory=False,compression='gzip') 
+                mutation = len(pd_motif)
                 if args.convert_hg38_hg19:
                     pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos)]
                 else:
@@ -1097,12 +1098,17 @@ def func_annotate_mutation_all_modified(args):
             #remove nan exonic
             pd_sort = pd_sort[~pd_sort['exonic'].isna()]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
+            preprocessed_mutation = len(pd_sort)
             pd_sort.to_csv(output_cs,sep='\t',index=False, compression="gzip")
 
             process.append('strand')
 
             if args.convert_hg38_hg19:
                 if process == ['motif','liftover','gc','genic','exonic','strand']:
+                    tup_mut = [(mutation,preprocessed_mutation)]
+                    pd_complete_mutation = pd.DataFrame(tup_mut)
+                    pd_complete_mutation.columns = ['original_mutation','preprocessed_mutation']
+                    pd_complete_mutation.to_csv(args.tmp_dir + sample_name + '_mutations.csv')
 
                     #task complete
                     os.remove(args.tmp_dir + sample_name + '.tsv.gz')
@@ -1116,7 +1122,10 @@ def func_annotate_mutation_all_modified(args):
                         os.remove(all_files[i_files])
             else:
                 if process == ['motif','no-liftover','gc','genic','exonic','strand']:
-
+                    tup_mut = [(mutation,preprocessed_mutation)]
+                    pd_complete_mutation = pd.DataFrame(tup_mut)
+                    pd_complete_mutation.columns = ['original_mutation','preprocessed_mutation']
+                    pd_complete_mutation.to_csv(args.tmp_dir + sample_name + '_mutations.csv')
                     #task complete
                     os.remove(args.tmp_dir + sample_name + '.vcf')
                     os.remove(args.tmp_dir + sample_name + '.tsv.gz')
