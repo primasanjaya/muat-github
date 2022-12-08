@@ -415,11 +415,7 @@ class VCFReader(VariantReader):
                 self.eof = True
                 return Variant(chrom=VariantReader.EOF, pos=0, ref='N', alt='N')
             v = v.rstrip('\n').split('\t')
-            #pdb.set_trace()
             chrom, pos, ref, alt, flt, info = v[0], int(v[1]), v[3], v[4], v[6], v[7]
-            if chrom[0:3]=='chr':
-                chrom = chrom[3:]
-            #pdb.set_trace()
 
             self.update_pos(None, chrom, pos)
             if self.pass_only and flt not in VCFReader.FILTER_PASS:
@@ -616,21 +612,32 @@ def get_reader(f, args, type_snvs=False):
 
 
 def open_stream(args,fn):
-    if fn.endswith('.gz'):
-        #f = gzip.open(fn)
-        #sample_name = os.path.basename(fn).split('.')[0]
-        sample_name = os.path.basename(fn).split('/')[0]
-        sample_name = sample_name[:-7]
+    if args.gel:
+        sample_name = fn[:-7]
+        sample_name = sample_name.split('/')
+        sample_name = sample_name[0] + '_'.join(sample_name[1:])
 
         with gzip.open(fn, 'rb') as f_in:
             with open(args.tmp_dir + sample_name + '.vcf', 'wb') as f_out:
                 shutil.copyfileobj(f_in, f_out)
-
-        f = open(args.tmp_dir + sample_name + '.vcf')
+            
+            f = open(args.tmp_dir + sample_name + '.vcf')
     else:
-        f = open(fn)
-        sample_name = os.path.basename(fn).split('.')[0]
-    assert(('.maf' in fn and '.vcf' in fn) == False)  # filenames should specify input type unambigiously
+        if fn.endswith('.gz'):
+            #f = gzip.open(fn)
+            #sample_name = os.path.basename(fn).split('.')[0]
+            sample_name = os.path.basename(fn).split('/')[0]
+            sample_name = sample_name[:-7]
+
+            with gzip.open(fn, 'rb') as f_in:
+                with open(args.tmp_dir + sample_name + '.vcf', 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+
+            f = open(args.tmp_dir + sample_name + '.vcf')
+        else:
+            f = open(fn)
+            sample_name = os.path.basename(fn).split('.')[0]
+        assert(('.maf' in fn and '.vcf' in fn) == False)  # filenames should specify input type unambigiously
     return f, sample_name
 
 def get_timestr():
@@ -731,8 +738,9 @@ def func_annotate_mutation_all_modified(args):
             #try:
 
             if args.gel:
-                sample_name = fn.split('/')
-                sample_name = '_'.join(sample_name)
+                sample_name = fn[:-7]
+                sample_name = sample_name.split('/')
+                sample_name = sample_name[0] + '_'.join(sample_name[1:])
             else:
                 get_ext = fn[-4:]
                 if get_ext == '.vcf':
@@ -763,20 +771,18 @@ def func_annotate_mutation_all_modified(args):
                 
                 status(fmt.format(i + 1, len(fns), sample_name), args)
                 vr = get_reader(f, args)
-                process_input(vr, o, sample_name_2, reference_19, args.context,mutation_code, reverse_mutation_code, args)
+                if args.convert_hg38_hg19:
+                    process_input(vr, o, sample_name_2, reference_38, args.context,mutation_code, reverse_mutation_code, args)
+                else:
+                    process_input(vr, o, sample_name_2, reference_19, args.context,mutation_code, reverse_mutation_code, args)
                 f.close()
                 o.close()
                 status('Output written to {}'.format(output_file), args)
-
                 #pdb.set_trace()
                 #natural sort motif
                 pd_motif = pd.read_csv(output_file,sep='\t',low_memory=False,compression='gzip') 
                 mutation = len(pd_motif)
-                if args.convert_hg38_hg19:
-                    pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos)]
-                else:
-                    pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos_h19)]
-                pd_motif = pd_motif.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
+                pd_motif  = pd_motif.sort_values(by=['chrom','pos'],key=natsort_keygen())
                 pd_motif.to_csv(output_file,sep='\t',index=False, compression="gzip")
                 #end motif
                 process.append('motif')
@@ -833,12 +839,10 @@ def func_annotate_mutation_all_modified(args):
                 #natural sort motif
                 pd_motif = pd.read_csv(output_file,sep='\t',low_memory=False)
                 print('original mutation:' + str(mutation) + ', preprocessed mutation:' + str(len(pd_motif)))
-                pd_motif = pd_motif.loc[pd_motif['chrom'].isin(accepted_pos)]
                 pd_motif = pd_motif.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
                 pd_motif.to_csv(output_file,sep='\t',index=False, compression="gzip")
                 #end motif
                 process.append('motif')
-
 
             else:
                 print('todo other vcf version')
@@ -853,6 +857,7 @@ def func_annotate_mutation_all_modified(args):
                 
                 pd_hg38 = pd.read_csv(output_file,sep='\t',low_memory=False) 
                 chrom_pos = []
+
 
                 for i in range(len(pd_hg38)):
                     try:
@@ -876,10 +881,14 @@ def func_annotate_mutation_all_modified(args):
                 pd_hg19.columns = pd_hg38.columns.tolist()
                 #natural sort
                 pd_hg19 = pd_hg19.loc[pd_hg19['chrom'].isin(accepted_pos_h19)]
+                pd_hg19 = pd_hg19.sort_values(by=['chrom','pos'], key=natsort_keygen())
                 pd_hg19.to_csv(output_file,sep='\t',index=False, compression="gzip")
                 #end liftover
                 process.append('liftover')
+
+                mut_liftover = len(pd_hg19)
             else:
+                mut_liftover = 0
                 process.append('no-liftover')
 
             #next gc content
@@ -971,6 +980,17 @@ def func_annotate_mutation_all_modified(args):
                         sys.stderr.write('{}: {} mutations. {}/mutation\n'.format(now, n_mut, td / batch_size))
                         then = now
             o.close()
+            
+            #natural sort #remove nan gc
+            #pdb.set_trace()
+            pd_sort = pd.read_csv(output_gc,sep='\t',low_memory=False,compression="gzip")
+            #remove nan genic
+            pd_sort = pd_sort[~pd_sort['gc1kb'].isna()]
+            pd_sort['chrom'] = pd_sort['chrom'].astype('string')
+            pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
+            pd_sort = pd_sort.sort_values(by=['chrom','pos'],key=natsort_keygen())
+            pd_sort.to_csv(output_gc,sep='\t',index=False, compression="gzip")
+
             process.append('gc')
 
             # Genic region
@@ -983,9 +1003,11 @@ def func_annotate_mutation_all_modified(args):
             subprocess.run(syntax_genic, shell=True)
 
             #natural sort #remove nan genic
-            pd_sort = pd.read_csv(output_genic,sep='\t',low_memory=False)
+            #pdb.set_trace()
+            pd_sort = pd.read_csv(output_genic,sep='\t',low_memory=False,compression="gzip")
             #remove nan genic
             pd_sort = pd_sort[~pd_sort['genic'].isna()]
+            pd_sort['chrom'] = pd_sort['chrom'].astype('string')
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             pd_sort.to_csv(output_genic,sep='\t',index=False, compression="gzip")
@@ -1001,8 +1023,9 @@ def func_annotate_mutation_all_modified(args):
             exonic'
             subprocess.run(syntax_exonic, shell=True)
 
-            pd_sort = pd.read_csv(output_exon,sep='\t',low_memory=False) 
+            pd_sort = pd.read_csv(output_exon,sep='\t',low_memory=False,compression="gzip") 
             pd_sort = pd_sort[~pd_sort['exonic'].isna()]
+            pd_sort['chrom'] = pd_sort['chrom'].astype('string')
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             pd_sort.to_csv(output_exon,sep='\t',index=False, compression="gzip")
@@ -1092,11 +1115,12 @@ def func_annotate_mutation_all_modified(args):
                     sys.stdout.write('{}: {} mutations written\n'.format(datetime.datetime.now(), n))
             o.flush()
             o.close()
+            
+            pd_sort = pd.read_csv(output_cs,sep='\t',low_memory=False,compression="gzip") 
+            pd_sort = pd_sort[~pd_sort['strand'].isna()]
 
-            pd_sort = pd.read_csv(output_cs,sep='\t',low_memory=False) 
+            pd_sort['chrom'] = pd_sort['chrom'].astype('string')
             pd_sort = pd_sort.loc[pd_sort['chrom'].isin(accepted_pos_h19)]
-            #remove nan exonic
-            pd_sort = pd_sort[~pd_sort['exonic'].isna()]
             pd_sort = pd_sort.sort_values(by=['chrom', 'pos'],key=natsort_keygen())
             preprocessed_mutation = len(pd_sort)
             pd_sort.to_csv(output_cs,sep='\t',index=False, compression="gzip")
@@ -1105,12 +1129,17 @@ def func_annotate_mutation_all_modified(args):
 
             if args.convert_hg38_hg19:
                 if process == ['motif','liftover','gc','genic','exonic','strand']:
-                    tup_mut = [(mutation,preprocessed_mutation)]
+                    tup_mut = [(mutation,mut_liftover, preprocessed_mutation)]
                     pd_complete_mutation = pd.DataFrame(tup_mut)
-                    pd_complete_mutation.columns = ['original_mutation','preprocessed_mutation']
+                    pd_complete_mutation.columns = ['original_mutation','liftover_mutation','preprocessed_mutation']
                     pd_complete_mutation.to_csv(args.tmp_dir + sample_name + '_mutations.csv')
 
                     #task complete
+                    #pdb.set_trace()
+                    try:
+                        os.remove(args.tmp_dir + sample_name + '.vcf')
+                    except:
+                        pass
                     os.remove(args.tmp_dir + sample_name + '.tsv.gz')
                     os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
                     os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
@@ -1122,12 +1151,16 @@ def func_annotate_mutation_all_modified(args):
                         os.remove(all_files[i_files])
             else:
                 if process == ['motif','no-liftover','gc','genic','exonic','strand']:
-                    tup_mut = [(mutation,preprocessed_mutation)]
+                    tup_mut = [(mutation,mut_liftover,preprocessed_mutation)]
                     pd_complete_mutation = pd.DataFrame(tup_mut)
-                    pd_complete_mutation.columns = ['original_mutation','preprocessed_mutation']
+                    pd_complete_mutation.columns = ['original_mutation','liftover_mutation','preprocessed_mutation']
                     pd_complete_mutation.to_csv(args.tmp_dir + sample_name + '_mutations.csv')
                     #task complete
-                    os.remove(args.tmp_dir + sample_name + '.vcf')
+
+                    try:
+                        os.remove(args.tmp_dir + sample_name + '.vcf')
+                    except:
+                        pass
                     os.remove(args.tmp_dir + sample_name + '.tsv.gz')
                     os.remove(args.tmp_dir + sample_name + '.gc.tsv.gz')
                     os.remove(args.tmp_dir + sample_name + '.gc.genic.tsv.gz')
@@ -1137,7 +1170,9 @@ def func_annotate_mutation_all_modified(args):
                     all_files = glob.glob(args.tmp_dir + sample_name + '*')
                     for i_files in range(len(all_files)):
                         os.remove(all_files[i_files])
-        except:
+        except Exception as err:
+
+            print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno),type(err).__name__, err)
             all_files = glob.glob(args.tmp_dir + sample_name + '*')
             for i_files in range(len(all_files)):
                 os.remove(all_files[i_files])

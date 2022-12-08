@@ -26,15 +26,22 @@ def preprocessing_fromdmm_all(args):
     for i in range(len(fns)):
 
         try:
-            fn = fns[i]
-            get_ext = fn[-4:]
-            if get_ext == '.vcf':
-                sample_name = fn[:-4]
-            else:
+            if args.gel:
+                fn = fns[i]
                 sample_name = fn[:-7]
+                sample_name = sample_name.split('/')
+                sample_name = sample_name[0] + '_'.join(sample_name[1:])
+                filename = sample_name
+            else:
+                fn = fns[i]
+                get_ext = fn[-4:]
+                if get_ext == '.vcf':
+                    sample_name = fn[:-4]
+                else:
+                    sample_name = fn[:-7]
 
-            filename = sample_name.split('/')
-            filename = filename[-1]
+                filename = sample_name.split('/')
+                filename = filename[-1]
 
             #pdb.set_trace()
 
