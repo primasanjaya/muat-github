@@ -218,16 +218,23 @@ class TCGAPCAWG_Dataloader(Dataset):
                 self.Normal = True
 
         vocabsize = 0
+        vocabNisi = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='NiSi'])
+        vocabSNV = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='SNV'])
+        vocabindel = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='indel']) 
+        vocabSVMEI = len(self.vocab_mutation.loc[self.vocab_mutation['typ'].isin(['MEI','SV'])])
+        vocabNormal = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='Normal'])
+        
+
         if self.NiSi:
-            vocabsize = len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='NiSi'])
+            vocabsize = vocabNisi
         if self.SNV:
-            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='SNV'])
+            vocabsize = vocabNisi + vocabSNV
         if self.indel:
-            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='indel'])                   
+            vocabsize = vocabNisi + vocabSNV + vocabindel         
         if self.SVMEI:
-            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ'].isin(['MEI','SV'])])
+            vocabsize = vocabNisi + vocabSNV + vocabindel + vocabSVMEI   
         if self.Normal:
-            vocabsize = vocabsize + len(self.vocab_mutation.loc[self.vocab_mutation['typ']=='Normal'])
+            vocabsize = vocabNisi + vocabSNV + vocabindel + vocabSVMEI + vocabNormal
 
         self.vocab_size = vocabsize + 1
         #print(self.vocab_size)
