@@ -87,22 +87,22 @@ def get_context(v, prev_buf, next_buf, ref_genome,
     """Retrieve sequence context around the focal variant v, incorporate surrounding variants into
     the sequence."""
 #    chrom, pos, fref, falt, vtype, _ = mut  # discard sample_id
-    assert(ispowerof2(args.context))
-    flank = (args.context * 2) / 2 - 1
-#    print 'get_context', chrom, pos, fref, falt, args.context
+    assert(args.context & (args.context - 1) == 0)
+    flank = (args.context * 2) // 2 - 1
+#    print('get_context', chrom, pos, fref, falt, args.context)
     if v.pos - flank - 1 < 0 or \
-        (args.no_ref_preload == False and v.pos + flank >= len(ref_genome[v.chrom])):
+        (not args.no_ref_preload and v.pos + flank >= len(ref_genome[v.chrom])):
         return None
     if args.no_ref_preload:
-        seq = subprocess.check_output(['samtools', 'faidx', args.reference_19,
+        seq = subprocess.check_output(['samtools', 'faidx', args.reference,
                                       '{}:{}-{}'.format(v.chrom, v.pos - flank,
                                        v.pos + flank)])
-        seq = ''.join(seq.split('\n')[1:])
+        seq = ''.join(seq.decode().split('\n')[1:])
     else:
-        seq = ref_genome[v.chrom][int(v.pos - flank - 1):int(v.pos + flank)]
-#    print 'seqlen', len(seq)
+        seq = ref_genome[v.chrom][v.pos - flank - 1:v.pos + flank]
+#    print('seqlen', len(seq))
     seq = list(seq)
-    fpos = len(seq) / 2  # position of the focal mutation
+    fpos = len(seq) // 2  # position of the focal mutation
     #for c2, p2, r2, a2, vt2, _ in itertools.chain(prev_buf, next_buf):
     for v2 in itertools.chain(prev_buf, next_buf):
         if args.nope:
@@ -113,26 +113,21 @@ def get_context(v, prev_buf, next_buf, ref_genome,
         tp = v2.pos - v.pos + flank
         if tp < 0 or tp >= len(seq):
             continue
-#        print c2, p2, r2, a2, vt2, len(r2), len(a2), len(seq)
+#        print(c2, p2, r2, a2, vt2, len(r2), len(a2), len(seq))
         if v2.vtype == Variant.SNV:
-            #pdb.set_trace()
-            seq[int(tp)] = mutation_code[v2.ref][v2.alt]
+            seq[tp] = mutation_code[v2.ref][v2.alt]
         elif v2.vtype == Variant.DEL:
             for i, dc in enumerate(v2.ref):
-#                    print 'DEL', i, dc, mutation_code[r2[i + 1]]['-']
-                seq[int(tp)] = mutation_code[dc]['-']
+#                    print('DEL', i, dc, mutation_code[r2[i + 1]]['-'])
+                seq[tp] = mutation_code[dc]['-']
                 tp += 1
                 if tp == len(seq):
                     break
             if v.pos == v2.pos:
-#                    print 'ADJ, del', fpos, (len(r2) - 1) / 2
-                fpos += len(v2.ref) / 2  # adjust to the deletion midpoint
+#                    print('ADJ, del', fpos, (len(r2) - 1) / 2)
+                fpos += len(v2.ref) // 2  # adjust to the deletion midpoint
         elif v2.vtype == Variant.INS:
-            
-            #seq[tp] = seq[tp] + ''.join([mutation_code['-'][ic] for ic in v2.alt]) 
-            seq[int(tp)] = seq[int(tp)] + ''.join([mutation_code['-'][ic] for ic in v2.alt])
-            #pdb.set_trace()
-
+            seq[tp] = seq[tp] + ''.join([mutation_code['-'][ic] for ic in v2.alt])
             if v2.pos < v.pos:      # adjust to the insertion midpoint
                 # v2 is before focal variant - increment position by insertion length
                 fpos += len(v2.alt)
@@ -145,25 +140,22 @@ def get_context(v, prev_buf, next_buf, ref_genome,
                 if len(m) + tp >= len(seq):  # too long allele to fit into the context; increase context length
                     return None
                 for i in range(len(m)):  # insert mutation sequence into original
-                    seq[int(tp)] = m[i]
+                    seq[tp] = m[i]
                     tp += 1
                 n_bp_diff = len(v2.alt) - len(v2.ref)
                 if n_bp_diff > 0: # inserted bases? add to the end of the block, insertions are unrolled below
-                    seq[int(tp - 1)] = seq[int(tp - 1)] + ''.join(v2.alt[len(v2.ref):])
+                    seq[tp - 1] = seq[tp - 1] + ''.join(v2.alt[len(v2.ref):])
                 # we need to adjust the midpoint according to whether block is before or at the current midpoint
                 if v2.pos < v.pos:
                     fpos += max(0, n_bp_diff)
                 elif v2.pos == v.pos:
-                    fpos += (len(m) - 1) / 2
+                    fpos += (len(m) - 1) // 2
         elif v2.vtype in Variant.MEI_TYPES:
-            #seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
-            seq[int(tp)] = seq[int(tp)] + mutation_code['-'][v2.vtype]
-
+            seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
             if v2.pos <= v.pos:  # handle SV breakpoints as insertions
                 fpos += 1
         elif v2.vtype in Variant.SV_TYPES:
-            #seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
-            seq[int(tp)] = seq[int(tp)] + mutation_code['-'][v2.vtype]
+            seq[tp] = seq[tp] + mutation_code['-'][v2.vtype]
             if v2.pos <= v.pos:  # handle SV breakpoints as insertions
                 fpos += 1
         elif v2.vtype == Variant.NOM:
@@ -172,53 +164,30 @@ def get_context(v, prev_buf, next_buf, ref_genome,
             raise Exception('Unknown variant type: {}'.format(v2))
     # unroll any insertions and deletions (list of lists -> list)
     seq = [x for sl in list(map(lambda x: list(x), seq)) for x in sl]
-    #print 'seq2', seq
+    #print('seq2', seq)
     n = len(seq)
     # reverse complement the sequence if the reference base of the substitution is not C or T,
     # or the first inserted/deleted base is not C or T.
     # we transform both nucleotides and mutations here
-#    print 'UNRL fpos={}, seq={}, f="{}", seqlen={}'.format(fpos, ''.join(seq), seq[fpos], len(seq))
+#    print('UNRL fpos={}, seq={}, f="{}", seqlen={}'.format(fpos, ''.join(seq), seq[fpos], len(seq)))
     lfref, lfalt = len(v.ref), len(v.alt)
-
-    
-    # trim sequence to length 2^n for max possible n
-    #target_len = 2**int(np.floor(np.log2(n)))
-    #trim = (n - target_len) / 2.0
-    
-
     if (lfref == 1 and lfalt == 1 and v.ref in 'AG') or \
        ((v.alt not in Variant.SV_TYPES) and (v.alt not in Variant.MEI_TYPES) and \
             ((lfref > 1 and v.ref[1] in 'AG') or (lfalt > 1 and v.alt[1]))):
         # dna_comp_default returns the input character for non-DNA characters (SV breakpoints)
-        #seq = map(lambda x: mutation_code[dna_comp_default(reverse_code.get(x)[0])][dna_comp_default(reverse_code.get(x)[1])], seq)[::-1]
-
-        revseq = seq[::-1]
-        revcomp=[]
-        for x in revseq:
-            rev = mutation_code[dna_comp_default(reverse_code.get(x)[0])][dna_comp_default(reverse_code.get(x)[1])]
-            revcomp.append(rev)
-        #pdb.set_trace()
-        seq = revcomp
-
-        fpos = n - ((len(seq) - 1) / 2) - 1
-
-#        print 'REVC', fref, falt, 'fpos={}, seq={}, f="{}", seqlen={}'.format(fpos, ''.join(seq), seq[fpos], len(seq))
+        seq = map(lambda x: mutation_code[dna_comp_default(reverse_code.get(x)[0])]\
+            [dna_comp_default(reverse_code.get(x)[1])], seq)[::-1]
+        fpos = n - fpos - 1
+#        print('REVC', fref, falt, 'fpos={}, seq={}, f="{}", seqlen={}'.format(fpos, ''.join(seq), seq[fpos], len(seq)))
     target_len = 2**int(np.floor(np.log2(args.context)))
     # trim sequence to length 2^n for max possible n
     #target_len = 2**int(np.floor(np.log2(n)))
     #trim = (n - target_len) / 2.0
-    #seq = ''.join(seq[max(0, fpos - int(np.floor(target_len / 2))):min(n, fpos + int(np.ceil(target_len / 2)))])
-
-    front = int(max(0, fpos - int(np.floor(target_len / 2))))
-    back = int(min(n, fpos + int(np.ceil(target_len / 2))))
-    seq = ''.join(seq[front:back])
-
-#    print 'TRIM seqlen={}, tgtlen={}, seq={}, mid="{}"'.format(len(seq), target_len, ''.join(seq), seq[len(seq) / 2])
+    seq = ''.join(seq[max(0, fpos - int(np.floor(target_len / 2))):min(n, fpos + int(np.ceil(target_len / 2)))])
+#    print('TRIM seqlen={}, tgtlen={}, seq={}, mid="{}"'.format(len(seq), target_len, ''.join(seq), seq[len(seq) // 2]))
     if len(seq) != target_len:
         return None
-
-    seq=seq[3:6]
-    return seq
+    return seq[3:6]
 
 def is_valid_dna(s):
     s2 = [a in 'ACGTN' for a in s]
