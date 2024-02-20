@@ -194,7 +194,6 @@ def get_args():
         parser.add_argument('--vcf41',action='store_true', default=False)
         parser.add_argument('--gel',action='store_true', default=False)
 
-
         #dmm_parser
         parser.add_argument('-v', '--verbose', type=int, help='Try to be more verbose')
 
@@ -342,71 +341,10 @@ if __name__ == '__main__':
             #trainer.dynamic_stream()
             trainer.batch_train()
 
-
-        if args.predict:
-
-            device = 'cpu'
-            if torch.cuda.is_available():
-                device = torch.cuda.current_device()
-
-            #load ckpt
-            if device == 'cpu':
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename,map_location=device)
-            else:
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename)
-
-            if len(allckpt) == 2:
-                old_args = allckpt[1]
-                weight = allckpt[0]
-
-                args = update_args(args,old_args)
-
-            else:
-                weight = allckpt
-
-            validation_dataset = get_simplified_dataloader(args=args,train_val='validation')
-            train_dataset = get_simplified_dataloader(args=args,train_val='training')
-
-            try:
-                mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, block_size=args.block_size,num_class=args.n_class, n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb,position_size=validation_dataset.position_size, ges_size =  validation_dataset.ges_size)
-                model = get_model(args,mconf)
-
-                #load weight to the model
-                model = model.to(device)
-                model.load_state_dict(weight)
-            except:
-                #solving
-                args = solving_arch(args)
-                mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, block_size=args.block_size,num_class=args.n_class, n_layer=args.n_layer,n_head=args.n_head, n_embd=args.n_emb,
-                position_size=validation_dataset.position_size, ges_size =  validation_dataset.ges_size)
-                model = get_model(args,mconf)
-
-                #load weight to the model
-                model = model.to(device)
-                model.load_state_dict(weight)
-
-            tconf = TrainerConfig(max_epochs=1, batch_size=1, learning_rate=6e-3,
-                    lr_decay=True,num_workers=20, args=args)
-
-            trainer = Trainer(model, None,[validation_dataset], tconf)
-
-            if args.vis_attention:
-                trainer = Trainer(model, None,[train_dataset, validation_dataset], tconf) 
-                trainer.visualize_attention(args.vis_attention)
-            else:                    
-                if args.get_features:
-                    trainer = Trainer(model, None,[train_dataset,validation_dataset], tconf) 
-
-                trainer.predict(args.get_features,args.input_data_dir)
-
-        if args.single_pred_vcf:
-
+        if args.predict_all:
             args = translate_args(args)
-            cmd_preprocess(args)
-
-            only_input_filename = args.input_filename[:-4]
-            execute_annotation(args,only_input_filename)
-            preprocessing_fromdmm(args)
+            func_annotate_mutation_all_modified(args)
+            preprocessing_fromdmm_all(args)
 
             device = 'cpu'
             if torch.cuda.is_available():
@@ -414,9 +352,9 @@ if __name__ == '__main__':
 
             #load ckpt
             if device == 'cpu':
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename,map_location=device)
+                allckpt = torch.load(args.load_ckpt_file,map_location=device)
             else:
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename)
+                allckpt = torch.load(args.load_ckpt_file,)
 
             #check weight
             #pdb.set_trace()
@@ -440,8 +378,6 @@ if __name__ == '__main__':
                                 context_length=args.context_length,
                                 args=args)
 
-            #pdb.set_trace()
-
             model = get_model(args,mconf)
 
             #load weight to the model
@@ -453,213 +389,7 @@ if __name__ == '__main__':
             predictor = Predictor(model, None,[validation_dataset], tconf)
 
             predictor.predict(args.get_features,args.input_newdata_dir)
-
-
-        if args.ensemble:
-            if args.predict_all:
-                args.ensemble = True
-                args = translate_args(args)
-                func_annotate_mutation_all_modified(args)
-                preprocessing_fromdmm_all(args)
-
-                device = 'cpu'
-                if torch.cuda.is_available():
-                    device = torch.cuda.current_device()
-
-                all_folder = os.listdir(args.load_ckpt_dir)
-                
-                #args.single_pred_vcf = True #carefull this is used in args.single pred. will be called twice if this is put above single_pred vcf
-                
-                for i in range(len(all_folder)):
-                    try:
-                        folder1 = all_folder[i]
-                        splitfold = folder1.split('fold')
-                        #pdb.set_trace()
-                        splitfold = splitfold[1].split('_')
-                        fold = int(splitfold[0])
-                        args.output_prefix = 'model' + str(fold)
-                        #load ckpt
-                        if device == 'cpu':
-                            allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename,map_location=device)
-                        else:
-                            allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename)
-                    except:
-                        print('can not load ckpt, plesae check the ckpt directory')
-
-                    #check weight
-                    #pdb.set_trace()
-                    if len(allckpt) == 3: #newformat
-                        old_args = allckpt[1]
-                        weight = allckpt[0]
-                        update_args(args,old_args)
-                    else:
-                        print('Warning: this model is depricated')
-
-                    validation_dataset = get_simplified_dataloader(args=args,train_val='validation',input_filename=args.input_filename)
-
-                    mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, 
-                                        block_size=args.block_size,
-                                        num_class=args.n_class,
-                                        n_layer=args.n_layer,
-                                        n_head=args.n_head, 
-                                        n_embd=args.n_emb,
-                                        position_size=validation_dataset.position_size,
-                                        ges_size = validation_dataset.ges_size,
-                                        context_length=args.context_length,
-                                        args=args)
-
-                    #pdb.set_trace()
-
-                    model = get_model(args,mconf)
-
-                    #load weight to the model
-                    model = model.to(device)
-                    model.load_state_dict(weight)
-
-                    tconf = PredictorConfig(max_epochs=1, batch_size=1,num_workers=20, args=args)
-
-                    predictor = Predictor(model, None,[validation_dataset], tconf)
-
-                    predictor.predict(args.get_features,args.input_newdata_dir)
-            else:
-                args = translate_args(args)
-                cmd_preprocess(args)
-                #pdb.set_trace()
-
-                if args.predict_filepath is not None:
-                    translate_args(args)
-                    execute_annotation_all()
-                else:
-                    only_input_filename = args.input_filename[:-4]
-                    execute_annotation(args,only_input_filename)
-                    preprocessing_fromdmm(args)
-
-                    device = 'cpu'
-                    if torch.cuda.is_available():
-                        device = torch.cuda.current_device()
-
-                    all_folder = os.listdir(args.load_ckpt_dir)
-                    
-                    args.single_pred_vcf = True #carefull this is used in args.single pred. will be called twice if this is put above single_pred vcf
-                    
-                    for i in range(len(all_folder)):
-
-                        try:
-                            folder1 = all_folder[i]
-                            splitfold = folder1.split('fold')
-                            #pdb.set_trace()
-                            splitfold = splitfold[1].split('_')
-                            fold = int(splitfold[0])
-                            args.output_prefix = 'model' + str(fold)
-                            #load ckpt
-                            if device == 'cpu':
-                                allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename,map_location=device)
-                            else:
-                                allckpt = torch.load(args.load_ckpt_dir + str(folder1) + '/' + args.load_ckpt_filename)
-                        except:
-                            print('can not load ckpt, plesae check the ckpt directory')
-
-                        #check weight
-                        #pdb.set_trace()
-                        if len(allckpt) == 3: #newformat
-                            old_args = allckpt[1]
-                            weight = allckpt[0]
-                            update_args(args,old_args)
-                        else:
-                            print('Warning: this model is depricated')
-
-                        validation_dataset = get_simplified_dataloader(args=args,train_val='validation',input_filename=args.input_filename)
-
-                        mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, 
-                                            block_size=args.block_size,
-                                            num_class=args.n_class,
-                                            n_layer=args.n_layer,
-                                            n_head=args.n_head, 
-                                            n_embd=args.n_emb,
-                                            position_size=validation_dataset.position_size,
-                                            ges_size = validation_dataset.ges_size,
-                                            context_length=args.context_length,
-                                            args=args)
-
-                        #pdb.set_trace()
-
-                        model = get_model(args,mconf)
-
-                        #load weight to the model
-                        model = model.to(device)
-                        model.load_state_dict(weight)
-
-                        tconf = PredictorConfig(max_epochs=1, batch_size=1,num_workers=20, args=args)
-
-                        predictor = Predictor(model, None,[validation_dataset], tconf)
-
-                        predictor.predict(args.get_features,args.input_newdata_dir)
-
-
-        
-
-        if args.multi_pred_vcf:
-
-            #get all vcf files
             
-            vcffiles = os.listdir(args.input_data_dir)
-            vcffiles = [i for i in vcffiles if i[-4:] =='.vcf']
-
-            for i in vcffiles:
-                args.input_filename = i
-                args = translate_args(args)
-                cmd_preprocess(args)
-
-                only_input_filename = i[:-4]
-                execute_annotation(args,only_input_filename)
-                preprocessing_fromdmm(args)
-            
-            #pdb.set_trace()
-
-            device = 'cpu'
-            if torch.cuda.is_available():
-                device = torch.cuda.current_device()
-
-            #load ckpt
-            if device == 'cpu':
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename,map_location=device)
-            else:
-                allckpt = torch.load(args.load_ckpt_dir + args.load_ckpt_filename)
-
-            #check weight
-            if len(allckpt) == 3: #newformat
-                old_args = allckpt[1]
-                weight = allckpt[0]
-                update_args(args,old_args)
-            else:
-                print('Warning: this model is depricated')
-
-            validation_dataset = get_simplified_dataloader(args=args,train_val='validation',input_filename=vcffiles)
-
-            mconf = ModelConfig(vocab_size=validation_dataset.vocab_size, 
-                                block_size=args.block_size,
-                                num_class=args.n_class,
-                                n_layer=args.n_layer,
-                                n_head=args.n_head, 
-                                n_embd=args.n_emb,
-                                position_size=validation_dataset.position_size,
-                                ges_size = validation_dataset.ges_size,
-                                context_length=args.context_length,
-                                args=args)
-
-            #pdb.set_trace()
-
-            model = get_model(args,mconf)
-
-            #load weight to the model
-            model = model.to(device)
-            model.load_state_dict(weight)
-
-            tconf = PredictorConfig(max_epochs=1, batch_size=1,num_workers=20, args=args)
-
-            predictor = Predictor(model, None,[validation_dataset], tconf)
-
-            predictor.predict(args.get_features,args.input_newdata_dir)
         
 
 

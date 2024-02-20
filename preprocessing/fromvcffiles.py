@@ -21,7 +21,7 @@ def preprocessing_fromdmm_all(args):
     dictChpos = pd.read_csv(args.cwd + '/extfile/dictChpos.csv',index_col=0,low_memory=False)
     dictGES = pd.read_csv(args.cwd + '/extfile/dictGES.csv',index_col=0,low_memory=False)
 
-    fns  = pd.read_csv(args.predict_filepath,sep='\t',index_col=0)['path'].to_list()
+    fns  = pd.read_csv(args.predict_filepath,sep='\t')['path'].to_list()
 
     for i in range(len(fns)):
 

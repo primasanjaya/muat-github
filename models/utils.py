@@ -49,7 +49,20 @@ def get_model(args,mconf):
 
 def get_simplified_dataloader(args,train_val,input_filename):
     if args.dataloader == 'pcawg' or args.dataloader == 'wgspcawg':
-        if args.multi_pred_vcf:
+        if args.predict_all:
+            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
+                                data_dir=args.tmp_dir,
+                                mode='testing', 
+                                curr_fold=args.fold, 
+                                block_size=args.block_size, 
+                                mutratio = args.mutratio,
+                                addtriplettoken=args.motif,
+                                addpostoken=args.motif_pos,
+                                addgestoken=args.motif_pos_ges,
+                                input_filename = None,
+                                args = args
+                                )
+        else:
             dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
                                     data_dir=args.tmp_dir,
                                     mode='testing', 
@@ -62,49 +75,6 @@ def get_simplified_dataloader(args,train_val,input_filename):
                                     input_filename = input_filename,
                                     args = args
                                     )
-
-        if args.single_pred_vcf:
-            dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.tmp_dir,
-                                    mode='testing', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size, 
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,
-                                    input_filename = input_filename,
-                                    args = args
-                                    )
-
-        if args.ensemble:
-            if args.predict_all:
-                dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                    data_dir=args.tmp_dir,
-                                    mode='testing', 
-                                    curr_fold=args.fold, 
-                                    block_size=args.block_size, 
-                                    mutratio = args.mutratio,
-                                    addtriplettoken=args.motif,
-                                    addpostoken=args.motif_pos,
-                                    addgestoken=args.motif_pos_ges,
-                                    input_filename = None,
-                                    args = args
-                                    )
-
-            else:
-                dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 
-                                        data_dir=args.tmp_dir,
-                                        mode='testing', 
-                                        curr_fold=args.fold, 
-                                        block_size=args.block_size, 
-                                        mutratio = args.mutratio,
-                                        addtriplettoken=args.motif,
-                                        addpostoken=args.motif_pos,
-                                        addgestoken=args.motif_pos_ges,
-                                        input_filename = input_filename,
-                                        args = args
-                                        )
 
         if args.train:
             dataloader_class = TCGAPCAWG_Dataloader(dataset_name = args.dataloader, 

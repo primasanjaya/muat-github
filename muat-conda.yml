@@ -24,3 +24,4 @@ dependencies:
   - pyliftover
   - pyvcf
   - natsort
+  - htslib

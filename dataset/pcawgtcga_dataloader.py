@@ -105,8 +105,7 @@ class TCGAPCAWG_Dataloader(Dataset):
 
             if self.args.predict_all:
                 fulltuple = []
-                fns = pd.read_csv(args.predict_filepath,sep='\t',index_col=0,low_memory=False)['path'].to_list()
-
+                fns = pd.read_csv(args.predict_filepath,sep='\t',low_memory=False)['path'].to_list()
                 for idx in range(len(fns)):
                     va = fns[idx]
 

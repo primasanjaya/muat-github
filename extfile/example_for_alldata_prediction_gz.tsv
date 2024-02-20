@@ -1,2 +1,6 @@
-	path
-0	/mnt/e/CRC_testsample_GRCh38_Mutect2_PASS_MSS.vcf.gz
+path
+/path/to/muat/data/raw/gz/0a6be23a-d5a0-4e95-ada2-a61b2b5d9485.consensus.20160830.somatic.snv_mnv.vcf.gz
+/path/to/muat/data/raw/gz/0a9c9db0-c623-11e3-bf01-24c6515278c0.consensus.20160830.somatic.snv_mnv.vcf.gz
+/path/to/muat/data/raw/gz/00c27940-c623-11e3-bf01-24c6515278c0.consensus.20160830.somatic.snv_mnv.vcf.gz
+/path/to/muat/data/raw/gz/00b9d0e6-69dc-4345-bffd-ce32880c8eef.consensus.20160830.somatic.snv_mnv.vcf.gz
+/path/to/muat/data/raw/gz/00db1b95-8ca3-4cc4-bb46-6b8c8019a7c7.consensus.20160830.somatic.snv_mnv.vcf.gz
