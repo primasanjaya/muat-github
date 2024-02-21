@@ -28,7 +28,7 @@ chmod 755 preprocessing/dmm/annotate_mutations_with_bed.sh
 * Look at the example file in ./extfile/example_for_alldata_prediction_gz.tsv file. This lists all files which will be predicted by the model
 * Run this code
 ```
-python3 main.py --dataloader 'pcawg' --predict-filepath '/path/to/muat/extfile/example_for_alldata_prediction_gz.tsv' --reference-h19 '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/ensemble/finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3/new_weight.pthx' --output-pred-dir ''/path/to/muat/data/raw/output/' --predict-all
+python3 main.py --dataloader 'pcawg' --predict-filepath '/path/to/muat/extfile/example_for_alldata_prediction_gz.tsv' --reference-h19 '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/ensemble/finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3/new_weight.pthx' --output-pred-dir '/path/to/muat/data/raw/output/' --predict-all
 ```
 
 * All preprocessed files are in /path/to/muat/data/raw/temp/
@@ -40,7 +40,7 @@ python3 main.py --dataloader 'pcawg' --predict-filepath '/path/to/muat/extfile/e
 ```
 wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/GRCh38_reference_genome/GRCh38_full_analysis_set_plus_decoy_hla.fa -O ./ref/ref_hg38
 ```
-* add reference hg38 and convert
+* add --convert-hg38-hg19 and --reference-h38 parser
 ```
 python3 main.py --dataloader 'pcawg' --predict-filepath '/path/to/muat/extfile/example_for_alldata_prediction_gz.tsv' --reference-h19 '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/ensemble/finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3/new_weight.pthx' --output-pred-dir '/path/to/muat/data/raw/output/' --predict-all --convert-hg38-hg19 --reference-h38 '/path/to/muat/ref/ref_hg38'
 ```
