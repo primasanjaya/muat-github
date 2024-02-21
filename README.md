@@ -31,9 +31,8 @@ chmod 755 preprocessing/dmm/annotate_mutations_with_bed.sh
 python3 main.py --dataloader 'pcawg' --predict-filepath '/path/to/muat/extfile/example_for_alldata_prediction_gz.tsv' --reference-h19 '/path/to/muat/ref/ref' --load-ckpt-file '/path/to/muat/bestckpt/wgs/ensemble/finalpcawgFeaturefold1_11110_wpos_TripletPositionF_bs5000_nl2_nh2_ne256_cl3/new_weight.pthx' --output-pred-dir '/path/to/muat/data/raw/output/' --predict-all
 ```
 
-* All preprocessed files are in /path/to/muat/data/raw/temp/
-* All prediction outputs are stored in --output-pred-dir
-
+* If it succeed, you can see all preprocessed files in /path/to/muat/data/raw/temp/
+* and all prediction outputs in --output-pred-dir
 
 ### Predicting .vcf file (GRCh38) : *add --convert-hg38-hg19 and --reference-h38 <filepath to ref hg38>
 * Download genome reference GRCh38
